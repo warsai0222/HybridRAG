@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: hybridrag_db
+    environment:
+      POSTGRES_DB: hybridrag
+      POSTGRES_USER: hybridrag
+      POSTGRES_PASSWORD: hybridrag
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hybridrag"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: hybridrag_api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      # Persist the BGE model cache so it doesn't re-download on every restart
+      - hf_cache:/app/.cache/huggingface
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  hf_cache:

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HybridRAG — Build Lifecycle Reference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #f9fafb;
+    color: #111827;
+    padding: 48px 40px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .header { margin-bottom: 36px; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+  .header p { font-size: 13px; color: #6b7280; }
+
+  /* ── Step card ── */
+  .step {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1.5px solid #e5e7eb;
+    page-break-inside: avoid;
+  }
+
+  .step-sidebar {
+    width: 130px;
+    min-width: 130px;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .step-num {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.65;
+  }
+
+  .step-name {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .step-body {
+    flex: 1;
+    padding: 16px 18px;
+    background: #fff;
+    border-left: 1.5px solid #e5e7eb;
+  }
+
+  .why {
+    font-size: 12.5px;
+    color: #374151;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  .files-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .file-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .file-name {
+    font-family: 'Fira Code', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    min-width: 210px;
+  }
+
+  .file-desc {
+    font-size: 12px;
+    color: #4b5563;
+    line-height: 1.5;
+    padding-top: 2px;
+  }
+
+  /* ── Connector arrow ── */
+  .connector {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 16px;
+    margin: 2px 0 2px 64px;
+    line-height: 1;
+  }
+
+  /* ── Color themes ── */
+  .s1 .step-sidebar { background: #eff6ff; color: #1d4ed8; }
+  .s1 .file-name    { background: #dbeafe; color: #1e40af; }
+
+  .s2 .step-sidebar { background: #faf5ff; color: #6d28d9; }
+  .s2 .file-name    { background: #ede9fe; color: #5b21b6; }
+
+  .s3 .step-sidebar { background: #f0fdf4; color: #15803d; }
+  .s3 .file-name    { background: #dcfce7; color: #166534; }
+
+  .s4 .step-sidebar { background: #fff7ed; color: #c2410c; }
+  .s4 .file-name    { background: #ffedd5; color: #9a3412; }
+
+  .s5 .step-sidebar { background: #fdf4ff; color: #a21caf; }
+  .s5 .file-name    { background: #fae8ff; color: #86198f; }
+
+  .s6 .step-sidebar { background: #f0f9ff; color: #0369a1; }
+  .s6 .file-name    { background: #e0f2fe; color: #075985; }
+
+  .s7 .step-sidebar { background: #fefce8; color: #a16207; }
+  .s7 .file-name    { background: #fef9c3; color: #854d0e; }
+
+  .s8 .step-sidebar { background: #f8fafc; color: #334155; }
+  .s8 .file-name    { background: #f1f5f9; color: #1e293b; }
+
+  /* ── Flow summary at bottom ── */
+  .flow-summary {
+    margin-top: 28px;
+    padding: 18px 20px;
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+  }
+
+  .flow-summary h2 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    margin-bottom: 12px;
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .flow-chip {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 11.5px;
+  }
+
+  .flow-arrow { color: #9ca3af; font-size: 14px; }
+
+  /* ── Print ── */
+  @media print {
+    body { background: white; padding: 24px; }
+    .step { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>HybridRAG — Build Lifecycle &amp; File Reference</h1>
+  <p>Every file in the project, what it does, and why it comes at that point in the build order.</p>
+</div>
+
+<!-- Step 1 -->
+<div class="step s1">
+  <div class="step-sidebar">
+    <span class="step-num">Step 1</span>
+    <span class="step-name">Project Scaffold</span>
+  </div>
+  <div class="step-body">
+    <p class="why">Before writing a single line of application code, you set up the skeleton — everything that makes the project reproducible, safe, and runnable by anyone on any machine. These files have no logic in them; they're configuration and infrastructure declarations.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">.gitignore</span>
+        <span class="file-desc">Tells git which files to never commit. Critical entries: <code>.env</code> (secrets), <code>.venv/</code> (local packages), <code>__pycache__/</code> (compiled bytecode). Without this, your API keys go public the moment you push.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">requirements.txt</span>
+        <span class="file-desc">The full list of Python packages the app depends on — fastapi, sqlalchemy, sentence-transformers, rank-bm25, openai, pydantic-settings, etc. Anyone cloning the repo runs <code>pip install -r requirements.txt</code> and gets an identical environment.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">.env</span>
+        <span class="file-desc">Stores real secrets: API keys, DB credentials. Never committed. Loaded at runtime by pydantic-settings. This is the only place secrets should ever appear.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">.env.example</span>
+        <span class="file-desc">A committed template showing what keys are needed, but with empty values. Teammates copy this to <code>.env</code> and fill in their own credentials.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">docker-compose.yml</span>
+        <span class="file-desc">Defines and starts your infrastructure with one command (<code>docker compose up</code>). For HybridRAG this spins up Postgres with the pgvector extension pre-installed. Without this you'd need Postgres installed locally and configured by hand — fragile and non-reproducible.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">Makefile</span>
+        <span class="file-desc">Shortcut commands so you don't memorize flags. <code>make api</code> starts the FastAPI server. <code>make db</code> starts Postgres. <code>make ingest</code> seeds the database. Makes the project easier to run and demo.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 2 -->
+<div class="step s2">
+  <div class="step-sidebar">
+    <span class="step-num">Step 2</span>
+    <span class="step-name">Configuration</span>
+  </div>
+  <div class="step-body">
+    <p class="why">Every file in the project needs shared values — the DB URL, model names, retrieval depths. Config is the single source of truth for all of them. It gets built before anything else because every subsequent file imports from it.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">src/config.py</span>
+        <span class="file-desc">Defines a <code>Settings</code> class using pydantic-settings. Reads values from <code>.env</code> at startup, validates their types, and exposes them as typed attributes. An <code>@lru_cache</code> wrapper ensures <code>.env</code> is parsed exactly once — every module that calls <code>get_settings()</code> gets the same cached object.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 3 -->
+<div class="step s3">
+  <div class="step-sidebar">
+    <span class="step-num">Step 3</span>
+    <span class="step-name">Database Layer</span>
+  </div>
+  <div class="step-body">
+    <p class="why">The database is the foundation everything else reads from and writes to. The schema defines the structure; the database module defines every query. All other files call into this module — nothing else talks to Postgres directly. This boundary means if you ever change your DB, you only change one file.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">scripts/init.sql</span>
+        <span class="file-desc">Creates the three tables (<code>documents</code>, <code>embeddings</code>, <code>classification_log</code>) and their indexes. Runs once when Postgres starts via docker-compose. Defines the HNSW index on embeddings for fast approximate nearest-neighbor search, and the partial index on <code>classification_log</code> for the review queue.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">src/database.py</span>
+        <span class="file-desc">Owns the SQLAlchemy engine (connection pool), the session context manager, and every SQL query function: <code>insert_document</code>, <code>insert_embedding</code>, <code>search_dense</code> (pgvector cosine search), <code>get_all_documents</code> (for BM25), and <code>log_classification</code>. Acts as a data access layer — no business logic, just queries.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 4 -->
+<div class="step s4">
+  <div class="step-sidebar">
+    <span class="step-num">Step 4</span>
+    <span class="step-name">Ingestion</span>
+  </div>
+  <div class="step-body">
+    <p class="why">Before retrieval can work, the database needs to be populated with labeled examples. Ingestion is the pipeline that takes raw text, converts it to a dense vector using the BGE embedding model, and stores both the text and the vector in Postgres. The retrieval layer depends entirely on data being here first.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">src/ingestion/ingest.py</span>
+        <span class="file-desc">Loads the BGE model (once, as a singleton). Exposes two embedding functions: <code>embed()</code> for documents (no prefix) and <code>embed_query()</code> for queries (with the BGE retrieval prefix). Calls <code>insert_document</code> and <code>insert_embedding</code> from database.py for each document ingested.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">scripts/ingest_samples.py</span>
+        <span class="file-desc">A one-time script that reads your 50 labeled pharma claims and calls <code>ingest_documents()</code> to seed the database. Run this once after the DB is up and before starting the API. This is your knowledge base — the ground truth the classifier learns from at inference time.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 5 -->
+<div class="step s5">
+  <div class="step-sidebar">
+    <span class="step-num">Step 5</span>
+    <span class="step-name">Retrieval</span>
+  </div>
+  <div class="step-body">
+    <p class="why">Given a new claim, the system needs to find the most similar labeled examples to use as few-shot context for the LLM. Two retrieval methods run in parallel — one semantic (dense), one keyword-based (sparse) — then get fused into a single ranking. Using both catches what either alone would miss.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">src/retrieval/dense.py</span>
+        <span class="file-desc">Embeds the incoming query with <code>embed_query()</code>, then calls <code>search_dense()</code> from database.py to find the closest vectors by cosine similarity using pgvector. Returns the top-K most semantically similar documents. Good at understanding meaning even when words differ.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">src/retrieval/sparse.py</span>
+        <span class="file-desc">At startup, loads all documents from the DB and builds an in-memory BM25 index. At query time, tokenizes the query and scores every document by term frequency and inverse document frequency. Good at exact keyword matches that dense embeddings can miss (e.g., drug names, regulatory codes).</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">src/retrieval/fusion.py</span>
+        <span class="file-desc">Takes the ranked lists from dense and sparse retrieval. Applies Reciprocal Rank Fusion: for each document, sum 1/(k + rank) across both lists where k=60 is a smoothing constant. Higher score = appeared near the top of both lists. Returns the top-K fused results. RRF uses rank positions only — not raw scores — making it robust to scale differences between methods.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 6 -->
+<div class="step s6">
+  <div class="step-sidebar">
+    <span class="step-num">Step 6</span>
+    <span class="step-name">Classifier</span>
+  </div>
+  <div class="step-body">
+    <p class="why">The retrieved examples become few-shot context for an LLM. The LLM reads the labeled examples alongside the new claim and reasons about which compliance category it belongs to. This is the intelligence layer — everything before it was about finding the right context to put in front of the model.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">src/classifier/classify.py</span>
+        <span class="file-desc">Calls <code>retrieve_hybrid()</code> to get the top fused examples. Formats them as a few-shot prompt with MLR regulatory context and verdict definitions. Calls the Groq API (Llama 3.3 70B) with <code>response_format=json_object</code> to get a structured response. Parses the label, confidence, and rationale. Flags predictions below 0.7 confidence for human review. Logs every result — including failures — to <code>classification_log</code>.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 7 -->
+<div class="step s7">
+  <div class="step-sidebar">
+    <span class="step-num">Step 7</span>
+    <span class="step-name">API Layer</span>
+  </div>
+  <div class="step-body">
+    <p class="why">The classifier is a Python function — the API turns it into an HTTP service that anything can call: a UI, a mobile app, another service, or a curl command. FastAPI handles request validation, response serialization, and auto-generates OpenAPI docs at /docs.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">src/api/main.py</span>
+        <span class="file-desc">Defines the FastAPI app with four endpoints: <code>POST /classify</code> (classify a claim), <code>POST /ingest</code> (add documents), <code>GET /health</code> (DB + model status), <code>GET /review-queue</code> (low-confidence predictions needing human review). Uses Pydantic models for request/response validation. On startup, builds the BM25 index from existing documents.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- Step 8 -->
+<div class="step s8">
+  <div class="step-sidebar">
+    <span class="step-num">Step 8</span>
+    <span class="step-name">UI + Eval</span>
+  </div>
+  <div class="step-body">
+    <p class="why">The UI is how you demo the project to anyone non-technical. The eval script is how you prove it works — accuracy, precision, and recall over a labeled test set. Both are built last because they depend on everything else being complete and working.</p>
+    <div class="files-grid">
+      <div class="file-row">
+        <span class="file-name">ui/app.py</span>
+        <span class="file-desc">Streamlit app. Text input box for a pharma claim → calls <code>POST /classify</code> → displays the verdict badge, confidence score, rationale, and the retrieved reference examples. This is what a recruiter or MLR reviewer sees. Requires only the API to be running.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-name">src/eval/evaluate.py</span>
+        <span class="file-desc">Loads a held-out labeled test set. Runs each claim through <code>classify()</code>. Computes accuracy, per-label precision, recall, and F1. Reports average latency and the distribution of confidence scores. This is what goes in the README and portfolio write-up as proof of performance.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Flow Summary -->
+<div class="flow-summary">
+  <h2>End-to-End Data Flow at Inference Time</h2>
+  <div class="flow-row">
+    <span class="flow-chip" style="background:#dbeafe;color:#1e40af;">Claim text in</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-chip" style="background:#ede9fe;color:#5b21b6;">BGE embeds query</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-chip" style="background:#fae8ff;color:#86198f;">Dense + Sparse retrieval</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-chip" style="background:#fae8ff;color:#86198f;">RRF fusion</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-chip" style="background:#e0f2fe;color:#075985;">LLM few-shot prompt</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-chip" style="background:#fef9c3;color:#854d0e;">Verdict + rationale out</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HybridRAG - Pharma MLR Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:           #040d1f;
+  --surface:      #081426;
+  --surface-2:    #0d1b33;
+  --border:       #132340;
+  --border-soft:  #0c1c38;
+
+  --text:         #ddeaff;
+  --muted:        #6b90c0;
+  --dim:          #2e4a6e;
+
+  --blue:         #4f8ef7;
+  --blue-glow:    rgba(79,142,247,0.18);
+  --blue-soft:    rgba(79,142,247,0.08);
+  --emerald:      #00d49a;
+  --emerald-glow: rgba(0,212,154,0.18);
+  --emerald-soft: rgba(0,212,154,0.08);
+  --amber:        #f5a623;
+  --amber-soft:   rgba(245,166,35,0.08);
+  --rose:         #ff5470;
+  --rose-soft:    rgba(255,84,112,0.08);
+  --violet:       #b197fc;
+  --violet-soft:  rgba(177,151,252,0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ═══════════════════ TOPBAR ═══════════════════ */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; height: 52px;
+  background: rgba(4,13,31,0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-soft);
+}
+.brand {
+  display: flex; align-items: center; gap: 9px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: -0.03em; color: var(--text);
+}
+.brand-mark {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff;
+  letter-spacing: 0;
+}
+.topnav { display: flex; align-items: center; gap: 2px; }
+.topnav a {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--dim); text-decoration: none;
+  padding: 5px 12px; border-radius: 5px;
+  transition: all 0.2s;
+}
+.topnav a:hover { color: var(--muted); background: var(--surface); }
+.api-pill {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.06em;
+  color: var(--dim);
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 3px 10px;
+}
+.api-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dim); transition: all 0.5s;
+}
+.api-dot.live { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); }
+
+/* ═══════════════════ HERO ═══════════════════ */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 130px 48px 80px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: -100px; right: -100px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(79,142,247,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+.tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 26px;
+  display: flex; align-items: center; gap: 10px;
+}
+.tag::before { content: '//'; color: var(--dim); }
+.hero-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(46px, 7.5vw, 88px);
+  font-weight: 700; letter-spacing: -0.05em; line-height: 0.92;
+  color: var(--text); margin-bottom: 36px;
+}
+.hero-title .dim { color: var(--muted); font-weight: 400; }
+.hero-title .accent { color: var(--blue); }
+.hero-desc {
+  font-size: 16px; line-height: 1.75;
+  color: var(--muted); max-width: 540px;
+  margin-bottom: 56px;
+}
+.hero-desc strong { color: var(--text); font-weight: 500; }
+
+/* Metrics row */
+.metrics {
+  display: flex; gap: 0;
+  border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; width: fit-content;
+  margin-bottom: 52px;
+}
+.metric {
+  padding: 18px 28px;
+  border-right: 1px solid var(--border);
+}
+.metric:last-child { border-right: none; }
+.m-val {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 30px; font-weight: 700;
+  letter-spacing: -0.04em; line-height: 1;
+  color: var(--text); margin-bottom: 4px;
+}
+.m-val.blue    { color: var(--blue); }
+.m-val.emerald { color: var(--emerald); }
+.m-val.amber   { color: var(--amber); }
+.m-val.violet  { color: var(--violet); }
+.m-key {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim);
+}
+.m-hint { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+.scroll-cue {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--dim); cursor: pointer; width: fit-content;
+  transition: color 0.2s;
+}
+.scroll-cue:hover { color: var(--muted); }
+.scroll-cue svg { animation: bob 1.8s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+
+/* ═══════════════════ SHARED ═══════════════════ */
+.section {
+  padding: 96px 48px;
+  max-width: 1200px; margin: 0 auto;
+}
+.s-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.s-tag::before { content: '//'; color: var(--dim); }
+.s-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(26px, 4vw, 42px);
+  font-weight: 700; letter-spacing: -0.04em; line-height: 1.05;
+  color: var(--text); margin-bottom: 12px;
+}
+.s-sub {
+  font-size: 14px; color: var(--muted); line-height: 1.65;
+  margin-bottom: 44px; max-width: 460px;
+}
+
+/* ═══════════════════ DEMO ═══════════════════ */
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Input panel */
+.glass-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.panel-bar {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; align-items: center; gap: 8px;
+}
+.wm-dots { display: flex; gap: 5px; }
+.wm-dots span {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--border);
+}
+.wm-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--dim); letter-spacing: 0.06em;
+  margin-left: 2px;
+}
+.chips-row {
+  padding: 14px 16px 10px;
+}
+.chips-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 8px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 4px 10px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px; color: var(--muted);
+  cursor: pointer; transition: all 0.18s;
+}
+.chip:hover { border-color: var(--blue); color: var(--text); }
+.chip.active { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.input-body { padding: 0 16px 16px; }
+textarea {
+  width: 100%;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 13px;
+  color: var(--text); font-family: 'Inter', sans-serif;
+  font-size: 14px; line-height: 1.6;
+  resize: none; outline: none; min-height: 120px;
+  transition: border-color 0.2s;
+}
+textarea:focus { border-color: var(--blue); }
+textarea::placeholder { color: var(--dim); }
+.input-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 10px;
+}
+.char-ct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--dim);
+}
+.run-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 20px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+  cursor: pointer; transition: all 0.18s;
+}
+.run-btn:hover:not(:disabled) { background: #6aa4ff; transform: translateY(-1px); }
+.run-btn:active:not(:disabled) { transform: none; }
+.run-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.spin {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: none;
+}
+.run-btn.loading .spin { display: block; }
+.run-btn.loading .btn-lbl { opacity: 0.6; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Output panel */
+#outputPanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 320px;
+  display: flex; flex-direction: column;
+}
+.idle-state {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 24px; gap: 14px;
+  color: var(--dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; text-align: center; line-height: 1.7;
+}
+.idle-icon {
+  width: 44px; height: 44px;
+  border: 1px solid var(--border); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px;
+}
+
+/* Pipeline animation */
+.pipeline-section {
+  padding: 20px 20px 0;
+  display: none;
+}
+.pipeline-section.show { display: block; }
+
+.p-nodes {
+  display: flex; align-items: center;
+  margin-bottom: 16px;
+}
+.p-node {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  flex-shrink: 0;
+}
+.p-circle {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  transition: all 0.35s;
+}
+.p-node.active .p-circle {
+  border-color: var(--blue);
+  background: var(--blue-glow);
+  box-shadow: 0 0 14px rgba(79,142,247,0.4);
+}
+.p-node.done .p-circle {
+  border-color: var(--emerald);
+  background: var(--emerald-glow);
+  box-shadow: 0 0 10px rgba(0,212,154,0.3);
+}
+.p-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim); text-align: center;
+  transition: color 0.35s;
+}
+.p-node.active .p-lbl { color: var(--blue); }
+.p-node.done  .p-lbl { color: var(--emerald); }
+.p-line {
+  flex: 1; height: 2px;
+  background: var(--border);
+  position: relative; overflow: hidden;
+  margin-bottom: 17px;
+  min-width: 10px;
+}
+.p-line-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0; background: var(--emerald);
+  transition: width 0.45s ease;
+}
+.p-line.done .p-line-fill { width: 100%; }
+
+/* Trace log */
+.trace-log {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px; line-height: 1.9;
+  color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--border-soft);
+  border-radius: 8px; padding: 12px 14px;
+  margin: 0 20px 0; min-height: 60px;
+}
+.t-line { display: flex; align-items: baseline; gap: 8px; }
+.t-arr { color: var(--blue); }
+.t-arr.ok  { color: var(--emerald); }
+.t-arr.err { color: var(--rose); }
+.t-ms { color: var(--dim); margin-left: auto; font-size: 9.5px; }
+
+/* Result block */
+.result-block {
+  padding: 16px 20px 20px;
+  display: none;
+  animation: fadeUp 0.4s ease;
+}
+.result-block.show { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.verdict-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-radius: 10px; border: 1px solid;
+  margin-bottom: 12px;
+}
+.v-left { display: flex; align-items: center; gap: 11px; }
+.v-icon { font-size: 19px; }
+.v-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px; font-weight: 700; letter-spacing: -0.03em;
+}
+.v-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.conf-block { text-align: right; }
+.conf-pct {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px; font-weight: 700; letter-spacing: -0.04em; line-height: 1;
+}
+.conf-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--dim);
+}
+.conf-bar {
+  height: 3px; background: var(--border);
+  border-radius: 2px; overflow: hidden; margin-top: 6px; width: 80px;
+}
+.conf-bar-fill {
+  height: 100%; width: 0; border-radius: 2px;
+  transition: width 0.9s cubic-bezier(0.2,0.8,0.3,1);
+}
+.review-flag {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 12px; border-radius: 7px;
+  background: var(--amber-soft); border: 1px solid rgba(245,166,35,0.2);
+  color: var(--amber); font-size: 12px;
+  margin-bottom: 12px;
+}
+.review-flag.hidden { display: none; }
+
+.info-block {
+  background: var(--surface-2); border: 1px solid var(--border-soft);
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+}
+.ib-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 7px;
+}
+.rationale { font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+
+.ex-item {
+  display: grid; grid-template-columns: 18px 1fr 52px;
+  gap: 9px; align-items: start;
+  background: var(--surface-2); border: 1px solid var(--border-soft);
+  border-radius: 8px; padding: 9px 11px;
+  margin-bottom: 7px;
+}
+.ex-n {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; color: var(--dim); padding-top: 2px;
+}
+.ex-badge {
+  display: inline-flex; padding: 1px 7px; border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; margin-bottom: 4px;
+}
+.ex-txt { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.ex-scores {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; color: var(--dim); text-align: right; line-height: 1.9;
+}
+.ex-scores .score-val { color: var(--muted); }
+
+/* ═══════════════════ ARCHITECTURE ═══════════════════ */
+.arch-bg {
+  background: var(--surface);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+.arch-inner {
+  max-width: 1200px; margin: 0 auto;
+  padding: 96px 48px;
+}
+
+.steps-rail {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 40px 0 0;
+}
+.step-card {
+  flex: 1; padding: 22px 18px;
+  border-right: 1px solid var(--border);
+  cursor: pointer; transition: background 0.18s;
+  position: relative;
+}
+.step-card:last-child { border-right: none; }
+.step-card:hover, .step-card.active { background: var(--surface-2); }
+.step-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: transparent; transition: background 0.18s;
+}
+.step-card.active::after     { background: var(--blue); }
+.step-card.sage.active::after   { background: var(--emerald); }
+.step-card.amber.active::after  { background: var(--amber); }
+.step-card.slate.active::after  { background: var(--violet); }
+.step-card.plum.active::after   { background: var(--rose); }
+
+.step-n {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; color: var(--dim); letter-spacing: 0.1em;
+  margin-bottom: 9px;
+}
+.step-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px; font-weight: 600; letter-spacing: -0.02em;
+  color: var(--text); margin-bottom: 6px; line-height: 1.25;
+}
+.step-tech {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.06em;
+  color: var(--blue);
+}
+.step-card.sage  .step-tech { color: var(--emerald); }
+.step-card.amber .step-tech { color: var(--amber); }
+.step-card.slate .step-tech { color: var(--violet); }
+.step-card.plum  .step-tech { color: var(--rose); }
+
+.step-detail {
+  display: none;
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: var(--surface-2);
+  padding: 28px 28px;
+  animation: fadeIn 0.25s ease;
+}
+.step-detail.show { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.d-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.025em;
+  color: var(--text); margin-bottom: 12px;
+}
+.d-body { font-size: 13px; line-height: 1.75; color: var(--muted); }
+.d-body strong { color: var(--text); font-weight: 500; }
+.code {
+  background: var(--bg); border: 1px solid var(--border-soft);
+  border-radius: 8px; padding: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; line-height: 1.72; color: var(--muted);
+  overflow-x: auto;
+}
+.kw  { color: var(--blue); }
+.str { color: var(--emerald); }
+.num { color: var(--amber); }
+.cm  { color: var(--dim); }
+
+/* ═══════════════════ STACK (BENTO) ═══════════════════ */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px; margin-top: 40px;
+}
+.b-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px;
+  transition: all 0.22s;
+  position: relative; overflow: hidden;
+}
+.b-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px; background: transparent;
+  transition: background 0.3s;
+}
+.b-card:hover { transform: translateY(-3px); background: var(--surface-2); }
+.b-card:hover::before           { background: var(--blue); }
+.b-card.emerald:hover::before   { background: var(--emerald); }
+.b-card.amber:hover::before     { background: var(--amber); }
+.b-card.violet:hover::before    { background: var(--violet); }
+.b-card.rose:hover::before      { background: var(--rose); }
+
+.b-glyph {
+  width: 38px; height: 38px; border-radius: 9px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 16px;
+}
+.b-tech {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+  color: var(--blue); margin-bottom: 5px;
+}
+.b-card.emerald .b-tech { color: var(--emerald); }
+.b-card.amber   .b-tech { color: var(--amber); }
+.b-card.violet  .b-tech { color: var(--violet); }
+.b-card.rose    .b-tech { color: var(--rose); }
+
+.b-what {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.025em;
+  color: var(--text); margin-bottom: 10px; line-height: 1.3;
+}
+.b-why { font-size: 12px; line-height: 1.65; color: var(--muted); }
+
+/* ═══════════════════ WHY CARDS ═══════════════════ */
+.why-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px; margin-top: 16px;
+}
+.w-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 26px;
+}
+.w-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.025em;
+  color: var(--text); margin-bottom: 12px;
+}
+.w-body { font-size: 13px; line-height: 1.75; color: var(--muted); }
+.w-body strong { color: var(--text); font-weight: 500; }
+
+/* FDA banner */
+.fda-strip {
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: 0 10px 10px 0;
+  padding: 16px 20px;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.fda-icon { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.fda-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--amber); margin-bottom: 6px;
+}
+.fda-text { font-size: 12px; line-height: 1.65; color: var(--muted); }
+.fda-text strong { color: var(--text); font-weight: 500; }
+.fda-text a { color: var(--amber); text-decoration: none; }
+
+/* ═══════════════════ FOOTER ═══════════════════ */
+.divider { height: 1px; background: var(--border-soft); margin: 0 48px; }
+footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 26px 48px;
+  max-width: 1200px; margin: 0 auto;
+}
+.foot-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--dim);
+}
+.foot-r { display: flex; gap: 18px; }
+.foot-r a {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim); text-decoration: none; transition: color 0.2s;
+}
+.foot-r a:hover { color: var(--muted); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--surface); border: 1px solid var(--rose);
+  border-radius: 8px; padding: 12px 16px;
+  font-size: 12px; color: #ff8095;
+  max-width: 360px; z-index: 999; display: none;
+}
+.toast.show { display: block; animation: fadeUp 0.3s ease; }
+
+/* ═══════════════════ RESPONSIVE ═══════════════════ */
+@media (max-width: 900px) {
+  .topbar { padding: 0 20px; }
+  .hero { padding: 100px 20px 60px; }
+  .metrics { flex-wrap: wrap; width: 100%; }
+  .metric { flex: 1; min-width: 120px; }
+  .section { padding: 64px 20px; }
+  .demo-grid { grid-template-columns: 1fr; }
+  .arch-bg .arch-inner { padding: 64px 20px; }
+  .steps-rail { flex-direction: column; }
+  .step-card { border-right: none; border-bottom: 1px solid var(--border); }
+  .step-detail.show { grid-template-columns: 1fr; }
+  .bento { grid-template-columns: 1fr 1fr; }
+  .why-row { grid-template-columns: 1fr; }
+  .divider { margin: 0 20px; }
+  footer { flex-direction: column; gap: 12px; padding: 24px 20px; }
+}
+
+/* ── Tablet / iPad (portrait) ── */
+@media (max-width: 680px) {
+  .topbar { padding: 0 16px; height: 48px; }
+  .topnav a { padding: 4px 8px; font-size: 9px; }
+  .api-pill { font-size: 9px; padding: 2px 8px; }
+  .hero { padding: 88px 16px 48px; }
+  .hero-desc { font-size: 15px; }
+  .metrics { gap: 0; }
+  .metric { flex: 0 0 50%; border-bottom: 1px solid var(--border); }
+  .metric:nth-child(odd) { border-right: 1px solid var(--border); }
+  .metric:last-child { border-bottom: none; }
+  .metric:nth-last-child(2) { border-bottom: none; }
+  .m-val { font-size: 24px; }
+  .section { padding: 52px 16px; }
+  .arch-bg .arch-inner { padding: 52px 16px; }
+  .bento { grid-template-columns: 1fr; }
+  .step-detail.show { padding: 20px 16px; }
+  .fda-strip { padding: 14px 16px; }
+}
+
+/* ── Mobile phone ── */
+@media (max-width: 480px) {
+  .topbar { padding: 0 14px; }
+  .topnav { display: none; }
+  .hero { padding: 76px 14px 40px; }
+  .hero-title { font-size: clamp(36px, 10vw, 56px); letter-spacing: -0.04em; }
+  .hero-desc { font-size: 14px; margin-bottom: 36px; }
+  .metrics { border-radius: 8px; }
+  .metric { padding: 14px 16px; }
+  .m-val { font-size: 22px; }
+  .m-hint { font-size: 10px; }
+  .section { padding: 44px 14px; }
+  .arch-bg .arch-inner { padding: 44px 14px; }
+  .s-title { font-size: clamp(22px, 6vw, 32px); }
+  .chips { gap: 4px; }
+  .chip { font-size: 10px; padding: 4px 8px; }
+  .step-n { font-size: 8px; }
+  .step-title { font-size: 13px; }
+  .step-tech { font-size: 8px; }
+  .b-card { padding: 18px 16px; }
+  .b-what { font-size: 14px; }
+  .b-why { font-size: 11.5px; }
+  .w-card { padding: 20px 16px; }
+  .w-title { font-size: 15px; }
+  .w-body { font-size: 12px; }
+  .fda-strip { flex-direction: column; gap: 8px; padding: 14px 14px; }
+  .divider { margin: 0 14px; }
+  footer { padding: 20px 14px; text-align: center; }
+  .foot-r { flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .disclaimer-popup { width: calc(100% - 28px); bottom: 14px; }
+  .disclaimer-card { padding: 22px 20px; }
+  .dc-actions { flex-direction: column; }
+  .disclaimer-footer { padding: 8px 14px; }
+  .df-text { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">H</div>
+    HybridRAG
+  </div>
+  <nav class="topnav">
+    <a href="#demo">Demo</a>
+    <a href="#architecture">Pipeline</a>
+    <a href="#stack">Stack</a>
+  </nav>
+  <div class="api-pill">
+    <div class="api-dot" id="apiDot"></div>
+    <span id="apiText">checking...</span>
+  </div>
+</header>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="tag">AI Engineering · Pharma MLR Compliance</div>
+  <h1 class="hero-title">
+    Dual retrieval,<br>
+    <span class="dim">one</span> <span class="accent">verdict.</span>
+  </h1>
+  <p class="hero-desc">
+    A <strong>production-grade RAG classifier</strong> that retrieves real FDA enforcement precedents via dense semantic search and sparse keyword matching, fuses the rankings, then passes them as few-shot evidence to an LLM for compliance reasoning.
+  </p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="m-val blue">BGE + BM25</div>
+      <div class="m-key">Retrieval methods</div>
+      <div class="m-hint">Dense + sparse in parallel</div>
+    </div>
+    <div class="metric">
+      <div class="m-val emerald">RRF k=60</div>
+      <div class="m-key">Fusion algorithm</div>
+      <div class="m-hint">Rank-based, scale-invariant</div>
+    </div>
+    <div class="metric">
+      <div class="m-val amber">5</div>
+      <div class="m-key">Compliance verdicts</div>
+      <div class="m-hint">Supported → Legal review</div>
+    </div>
+    <div class="metric">
+      <div class="m-val violet">70%</div>
+      <div class="m-key">Human review threshold</div>
+      <div class="m-hint">Below this → escalates</div>
+    </div>
+  </div>
+
+  <div class="scroll-cue" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <path d="M6.5 1.5v10M1.5 7l5 4.5L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Try the live demo
+  </div>
+</section>
+
+<!-- ═══ DEMO ═══ -->
+<section class="section" id="demo">
+  <div class="s-tag">Live Demo</div>
+  <h2 class="s-title">Classify a pharma claim</h2>
+  <p class="s-sub">Paste any pharmaceutical marketing claim. Watch each stage of the retrieval pipeline activate, then see the LLM's compliance verdict with cited FDA precedents.</p>
+
+  <div class="demo-grid">
+    <!-- LEFT: Input -->
+    <div class="glass-panel">
+      <div class="panel-bar">
+        <div class="wm-dots"><span></span><span></span><span></span></div>
+        <div class="wm-title">claim_input.txt</div>
+      </div>
+      <div class="chips-row">
+        <div class="chips-lbl">Real FDA enforcement cases</div>
+        <div class="chips">
+          <div class="chip" onclick="loadEx(this,0)">Ozempic · omission</div>
+          <div class="chip" onclick="loadEx(this,1)">Wegovy · false balance</div>
+          <div class="chip" onclick="loadEx(this,2)">Kisqali · comparative</div>
+          <div class="chip" onclick="loadEx(this,3)">Auvelity · off-label</div>
+          <div class="chip" onclick="loadEx(this,4)">Supported claim</div>
+        </div>
+      </div>
+      <div class="input-body">
+        <textarea id="claimInput" placeholder="Enter a pharmaceutical marketing claim to classify..." rows="5" oninput="onType()"></textarea>
+        <div class="input-row">
+          <span class="char-ct" id="charCount">0 chars</span>
+          <button class="run-btn" id="runBtn" onclick="runClassify()" disabled>
+            <div class="spin"></div>
+            <span class="btn-lbl">Classify →</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div id="outputPanel">
+      <div class="panel-bar">
+        <div class="wm-dots"><span></span><span></span><span></span></div>
+        <div class="wm-title">pipeline_output</div>
+      </div>
+      <div class="idle-state" id="idleState">
+        <div class="idle-icon">⚡</div>
+        <div>Enter a claim and click <strong style="color:var(--text)">Classify →</strong><br>to run the dual-retrieval pipeline</div>
+      </div>
+
+      <!-- Pipeline nodes (shown during + after classify) -->
+      <div class="pipeline-section" id="pipelineSection">
+        <div class="p-nodes" id="pipelineNodes">
+          <div class="p-node" id="nd0">
+            <div class="p-circle">⚡</div>
+            <div class="p-lbl">BGE</div>
+          </div>
+          <div class="p-line" id="ln0"><div class="p-line-fill"></div></div>
+          <div class="p-node" id="nd1">
+            <div class="p-circle">🔍</div>
+            <div class="p-lbl">Dense</div>
+          </div>
+          <div class="p-line" id="ln1"><div class="p-line-fill"></div></div>
+          <div class="p-node" id="nd2">
+            <div class="p-circle">📝</div>
+            <div class="p-lbl">BM25</div>
+          </div>
+          <div class="p-line" id="ln2"><div class="p-line-fill"></div></div>
+          <div class="p-node" id="nd3">
+            <div class="p-circle">⚖️</div>
+            <div class="p-lbl">RRF</div>
+          </div>
+          <div class="p-line" id="ln3"><div class="p-line-fill"></div></div>
+          <div class="p-node" id="nd4">
+            <div class="p-circle">🧠</div>
+            <div class="p-lbl">LLM</div>
+          </div>
+        </div>
+
+        <!-- Trace log -->
+        <div class="trace-log" id="traceLog"></div>
+      </div>
+
+      <!-- Result -->
+      <div class="result-block" id="resultBlock">
+        <div class="verdict-row" id="verdictRow">
+          <div class="v-left">
+            <div class="v-icon" id="vIcon"></div>
+            <div>
+              <div class="v-name" id="vName"></div>
+              <div class="v-desc" id="vDesc"></div>
+            </div>
+          </div>
+          <div class="conf-block">
+            <div class="conf-pct" id="confPct"></div>
+            <div class="conf-lbl">confidence</div>
+            <div class="conf-bar"><div class="conf-bar-fill" id="confFill"></div></div>
+          </div>
+        </div>
+
+        <div class="review-flag hidden" id="reviewFlag">
+          ⚠ Low confidence - flagged for human MLR review
+        </div>
+
+        <div class="info-block">
+          <div class="ib-label">Regulatory Rationale</div>
+          <div class="rationale" id="rationaleText"></div>
+        </div>
+
+        <div class="info-block" id="examplesBlock">
+          <div class="ib-label">Retrieved Reference Claims</div>
+          <div id="examplesList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ARCHITECTURE ═══ -->
+<div class="arch-bg" id="architecture">
+  <div class="arch-inner">
+    <div class="s-tag">Architecture</div>
+    <h2 class="s-title">How the pipeline works</h2>
+    <p class="s-sub">Five stages, each with a specific job. Click any step to see what it does and why it's designed that way.</p>
+
+    <div class="steps-rail">
+      <div class="step-card active" onclick="showStep(0,this)">
+        <div class="step-n">01</div>
+        <div class="step-title">Query Embedding</div>
+        <div class="step-tech">BGE-large-en-v1.5</div>
+      </div>
+      <div class="step-card sage" onclick="showStep(1,this)">
+        <div class="step-n">02</div>
+        <div class="step-title">Dense Retrieval</div>
+        <div class="step-tech">pgvector · HNSW</div>
+      </div>
+      <div class="step-card amber" onclick="showStep(2,this)">
+        <div class="step-n">03</div>
+        <div class="step-title">Sparse Retrieval</div>
+        <div class="step-tech">BM25 · Okapi</div>
+      </div>
+      <div class="step-card slate" onclick="showStep(3,this)">
+        <div class="step-n">04</div>
+        <div class="step-title">RRF Fusion</div>
+        <div class="step-tech">Rank-based · k=60</div>
+      </div>
+      <div class="step-card plum" onclick="showStep(4,this)">
+        <div class="step-n">05</div>
+        <div class="step-title">LLM Classification</div>
+        <div class="step-tech">Llama 3.3 70B · Few-shot</div>
+      </div>
+    </div>
+
+    <div class="step-detail show" id="stepDetail">
+      <div>
+        <div class="d-title">Query Embedding with BGE</div>
+        <div class="d-body">
+          <p>The incoming claim is embedded using <strong>BAAI/bge-large-en-v1.5</strong>, an encoder-only transformer trained with contrastive learning. It maps semantically similar claims to nearby points in a 1024-dimensional vector space.</p>
+          <br>
+          <p>BGE uses an <strong>asymmetric strategy</strong>: documents are indexed as plain text, but queries are prefixed with <em>"Represent this sentence for searching relevant passages:"</em> - a signal to the model that we're searching, not indexing. Retrieval quality measurably drops without it.</p>
+          <br>
+          <p>Embeddings are L2-normalized so cosine similarity equals dot product - keeping all similarity scores consistent and comparable.</p>
+        </div>
+      </div>
+      <div>
+        <div class="code"><span class="cm"># Asymmetric embedding - core BGE insight</span><br><br><span class="kw">def</span> embed_document(text):<br>    <span class="cm"># No prefix for indexing</span><br>    <span class="kw">return</span> model.encode(text, normalize=<span class="kw">True</span>)<br><br><span class="kw">def</span> embed_query(query):<br>    prefix = <span class="str">"Represent this sentence "</span><br>             <span class="str">"for searching relevant passages: "</span><br>    <span class="kw">return</span> model.encode(<br>        prefix + query,<br>        normalize=<span class="kw">True</span><br>    )</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STACK ═══ -->
+<section class="section" id="stack">
+  <div class="s-tag">Technical Stack</div>
+  <h2 class="s-title">Every component, and why</h2>
+  <p class="s-sub">Each technology was chosen for a specific reason. This isn't a framework - it's a deliberate design.</p>
+
+  <div class="bento">
+    <div class="b-card">
+      <div class="b-glyph">🔍</div>
+      <div class="b-tech">BGE-large-en-v1.5</div>
+      <div class="b-what">Semantic retrieval backbone</div>
+      <div class="b-why">Encoder-only transformer trained via contrastive learning. Leads MTEB English retrieval benchmarks. Understands paraphrases and conceptual similarity - critical for regulatory language where claim wording varies but meaning doesn't.</div>
+    </div>
+    <div class="b-card emerald">
+      <div class="b-glyph">📊</div>
+      <div class="b-tech">BM25 (Okapi)</div>
+      <div class="b-what">Keyword retrieval complement</div>
+      <div class="b-why">Catches exact term matches dense embeddings miss: specific drug names, IND/NDA numbers, trial identifiers like MONALEESA-7, regulatory phrases like "adequate and well-controlled." Dense and sparse are architecturally complementary - neither alone is sufficient.</div>
+    </div>
+    <div class="b-card amber">
+      <div class="b-glyph">⚖️</div>
+      <div class="b-tech">Reciprocal Rank Fusion</div>
+      <div class="b-what">Scale-invariant result fusion</div>
+      <div class="b-why">Dense scores (cosine, 0–1) and sparse scores (BM25, unbounded) live on different scales - averaging them directly is mathematically meaningless. RRF uses only rank positions, making fusion robust regardless of score distribution. Cormack et al., 2009.</div>
+    </div>
+    <div class="b-card violet">
+      <div class="b-glyph">🐘</div>
+      <div class="b-tech">PostgreSQL + pgvector</div>
+      <div class="b-what">Unified storage + vector search</div>
+      <div class="b-why">One database handles structured document storage and approximate nearest-neighbor search via an HNSW index. No separate vector DB to maintain or sync - simpler operational footprint and one less failure point.</div>
+    </div>
+    <div class="b-card rose">
+      <div class="b-glyph">🤖</div>
+      <div class="b-tech">Llama 3.3 70B (Groq API)</div>
+      <div class="b-what">Classification reasoning head</div>
+      <div class="b-why">Receives the top-5 retrieved FDA enforcement examples as few-shot context and reasons about compliance under 21 CFR Part 202. Constrained to structured JSON output with label, confidence, and rationale fields.</div>
+    </div>
+    <div class="b-card">
+      <div class="b-glyph">⚡</div>
+      <div class="b-tech">FastAPI + Pydantic</div>
+      <div class="b-what">Production-grade API layer</div>
+      <div class="b-why">Type-safe request/response validation, auto-generated OpenAPI docs, async-ready request handling. Pydantic-settings manages config - secrets stay in .env, never in source. CORS-enabled so the portfolio demo works as a local file.</div>
+    </div>
+  </div>
+
+  <div class="why-row">
+    <div class="w-card">
+      <div class="w-title">Why MLR review needs this</div>
+      <div class="w-body">Every promotional claim must pass Medical-Legal-Regulatory review before reaching physicians or patients. A single non-compliant claim can trigger an FDA enforcement action - as seen in the 70+ OPDP untitled letters issued to <strong>Pfizer, Novartis, AbbVie, AstraZeneca, and Novo Nordisk</strong>. HybridRAG gives MLR reviewers an AI-powered first pass that cites real regulatory precedent, not synthetic examples.</div>
+    </div>
+    <div class="w-card">
+      <div class="w-title">Why hybrid beats either alone</div>
+      <div class="w-body">Dense retrieval understands semantic similarity - <em>"reduces cardiac events"</em> and <em>"lowers heart attack risk"</em> are the same idea. Sparse BM25 catches exact terms - a trial name like <strong>MONALEESA-7</strong>, a regulatory phrase like <em>"adequate and well-controlled studies"</em>. RRF fuses both rankings into a single list that consistently outperforms either retriever alone on domain-specific text.</div>
+    </div>
+  </div>
+
+  <div class="fda-strip">
+    <div class="fda-icon">📋</div>
+    <div>
+      <div class="fda-tag">Data Source - FDA OPDP Enforcement Letters</div>
+      <div class="fda-text">The retrieval index is built from real <strong>FDA Office of Prescription Drug Promotion (OPDP) untitled letters</strong> scraped from fda.gov and parsed with pdfplumber. Each claim is labeled by violation type - false balance, unsubstantiated, off-label, comparative - directly from the FDA's own findings. No synthetic data. Source: <a href="https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-pharmaceutical-companies/untitled-letters" target="_blank">fda.gov/opdp</a></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+<footer>
+  <div class="foot-l">HybridRAG · Pharma MLR Classifier · Built by Varshith Tipirneni</div>
+  <div class="foot-r">
+    <a href="#demo">Demo</a>
+    <a href="#architecture">Pipeline</a>
+    <a href="#stack">Stack</a>
+    <a href="http://localhost:8000/docs" target="_blank">API Docs</a>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000';
+
+const VERDICTS = {
+  supported:           { icon:'✅', name:'Supported',            desc:'Fully backed by clinical evidence',            color:'#00d49a', border:'rgba(0,212,154,0.25)',  bg:'rgba(0,212,154,0.06)',  bar:'#00d49a' },
+  unsupported:         { icon:'🚫', name:'Unsupported',          desc:'No credible evidence basis',                   color:'#ff5470', border:'rgba(255,84,112,0.25)', bg:'rgba(255,84,112,0.06)', bar:'#ff5470' },
+  partially_supported: { icon:'⚠️', name:'Partially Supported',  desc:'Missing critical hedges or qualifiers',        color:'#f5a623', border:'rgba(245,166,35,0.25)', bg:'rgba(245,166,35,0.06)', bar:'#f5a623' },
+  false_balance:       { icon:'⚖️', name:'False Balance',        desc:'Safety risk severity obscured or minimized',   color:'#b197fc', border:'rgba(177,151,252,0.25)',bg:'rgba(177,151,252,0.06)',bar:'#b197fc' },
+  needs_legal_review:  { icon:'📋', name:'Needs Legal Review',   desc:'IP, off-label, or regulatory counsel needed',  color:'#4f8ef7', border:'rgba(79,142,247,0.25)', bg:'rgba(79,142,247,0.06)', bar:'#4f8ef7' },
+  insufficient_data:   { icon:'🔍', name:'Insufficient Data',    desc:'No relevant precedents in knowledge base',     color:'#6b90c0', border:'rgba(107,144,192,0.25)',bg:'rgba(107,144,192,0.06)',bar:'#6b90c0' },
+};
+
+const EXAMPLES = [
+  "OZEMPIC delivers superior glycemic control for adults with type 2 diabetes - proven to reduce HbA1c with a tolerability profile comparable to placebo in clinical trials.",
+  "WEGOVY helps patients lose up to 20% of their body weight with once-weekly dosing - a simple, safe, long-term solution for chronic weight management in adults.",
+  "KISQALI is the only CDK4/6 inhibitor to demonstrate an overall survival benefit across all three MONALEESA trials, making it the superior choice for HR+/HER2- advanced breast cancer over all other CDK4/6 inhibitors.",
+  "AUVELITY's rapid-onset mechanism makes it ideal for patients experiencing treatment-resistant depression, bipolar depression, and post-traumatic stress disorder requiring fast relief.",
+  "In the SUSTAIN-6 trial (n=3,297), OZEMPIC (semaglutide) 0.5 mg and 1 mg reduced the risk of major adverse cardiovascular events by 26% vs. placebo (HR 0.74; 95% CI 0.58–0.95; p=0.016) in adults with type 2 diabetes and high cardiovascular risk.",
+];
+
+const STAGE_MSGS = [
+  { msg: 'embedding query vector',    ms: '~120ms', delay: 200 },
+  { msg: 'dense retrieval via HNSW',  ms: '~45ms',  delay: 320 },
+  { msg: 'BM25 keyword search',       ms: '~18ms',  delay: 240 },
+  { msg: 'RRF fusion (k=60)',          ms: '~4ms',   delay: 180 },
+  { msg: 'LLM few-shot reasoning',    ms: '~1.2s',  delay: 1300 },
+];
+
+function loadEx(el, idx) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('claimInput').value = EXAMPLES[idx];
+  onType();
+}
+
+function onType() {
+  const v = document.getElementById('claimInput').value;
+  document.getElementById('charCount').textContent = v.length + ' chars';
+  document.getElementById('runBtn').disabled = !v.trim();
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let traceLines = [];
+
+function addTraceLine(arr, msg, ms) {
+  const log = document.getElementById('traceLog');
+  const line = document.createElement('div');
+  line.className = 't-line';
+  const cls = arr ? `t-arr ${arr}` : 't-arr';
+  line.innerHTML = `<span class="${cls}">→</span> <span>${msg}</span>${ms ? `<span class="t-ms">${ms}</span>` : '<span class="t-ms">...</span>'}`;
+  log.appendChild(line);
+  traceLines.push(line);
+}
+
+function updateLastLine(ms) {
+  if (traceLines.length === 0) return;
+  const last = traceLines[traceLines.length - 1];
+  const msEl = last.querySelector('.t-ms');
+  const arrEl = last.querySelector('.t-arr');
+  if (msEl) msEl.textContent = ms;
+  if (arrEl) arrEl.classList.add('ok');
+}
+
+async function runPipelineAnimation() {
+  for (let i = 0; i < 5; i++) {
+    const nd = document.getElementById(`nd${i}`);
+    nd.classList.add('active');
+    addTraceLine('', STAGE_MSGS[i].msg, null);
+    await delay(STAGE_MSGS[i].delay);
+    nd.classList.remove('active');
+    nd.classList.add('done');
+    updateLastLine(STAGE_MSGS[i].ms);
+    if (i < 4) {
+      document.getElementById(`ln${i}`).classList.add('done');
+    }
+  }
+}
+
+async function runClassify() {
+  const text = document.getElementById('claimInput').value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('runBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  // Reset
+  document.getElementById('idleState').style.display = 'none';
+  document.getElementById('pipelineSection').classList.add('show');
+  document.getElementById('resultBlock').classList.remove('show');
+  document.getElementById('traceLog').innerHTML = '';
+  traceLines = [];
+  for (let i = 0; i < 5; i++) {
+    const nd = document.getElementById(`nd${i}`);
+    nd.classList.remove('active','done');
+    const ln = document.getElementById(`ln${i}`);
+    if (ln) ln.classList.remove('done');
+  }
+
+  try {
+    const [_, data] = await Promise.all([
+      runPipelineAnimation(),
+      fetch(API + '/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      }).then(r => { if (!r.ok) throw new Error('API error ' + r.status); return r.json(); })
+    ]);
+
+    addTraceLine('ok', 'classification complete', '✓');
+    renderResult(data);
+  } catch (e) {
+    addTraceLine('err', 'error: ' + e.message, '✗');
+    showToast('Classification failed: ' + e.message + '. Is the API running?');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function renderResult(data) {
+  const v = VERDICTS[data.label] || {
+    icon: '❓', name: data.label, desc: '', color: '#6b90c0',
+    border: 'rgba(107,144,192,0.25)', bg: 'rgba(107,144,192,0.06)', bar: '#6b90c0'
+  };
+  const conf = Math.round(data.confidence * 100);
+
+  const row = document.getElementById('verdictRow');
+  row.style.background = v.bg;
+  row.style.borderColor = v.border;
+
+  document.getElementById('vIcon').textContent = v.icon;
+  document.getElementById('vName').textContent  = v.name;
+  document.getElementById('vName').style.color  = v.color;
+  document.getElementById('vDesc').textContent  = v.desc;
+
+  document.getElementById('confPct').textContent  = conf + '%';
+  document.getElementById('confPct').style.color  = v.color;
+
+  const fill = document.getElementById('confFill');
+  fill.style.background = v.bar;
+  setTimeout(() => { fill.style.width = conf + '%'; }, 60);
+
+  const flag = document.getElementById('reviewFlag');
+  flag.classList.toggle('hidden', !data.needs_human_review);
+
+  document.getElementById('rationaleText').textContent = data.rationale;
+
+  const list = document.getElementById('examplesList');
+  list.innerHTML = '';
+  (data.retrieved_examples || []).forEach((ex, i) => {
+    const ev = VERDICTS[ex.label] || { color: '#6b90c0', bg: 'rgba(107,144,192,0.08)', name: ex.label };
+    const rrf    = ex.rrf_score    != null ? ex.rrf_score.toFixed(4)    : '--';
+    const dense  = ex.dense_score  != null ? ex.dense_score.toFixed(3)  : '--';
+    const sparse = ex.sparse_score != null ? ex.sparse_score.toFixed(3) : '--';
+
+    list.innerHTML += `
+      <div class="ex-item">
+        <div class="ex-n">#${i+1}</div>
+        <div>
+          <div class="ex-badge" style="background:${ev.bg};color:${ev.color};border:1px solid ${ev.color}30">${ev.name || ex.label}</div>
+          <div class="ex-txt">${ex.text}</div>
+        </div>
+        <div class="ex-scores">
+          <div>RRF</div><div class="score-val">${rrf}</div>
+          <div>Dense</div><div class="score-val">${dense}</div>
+          <div>BM25</div><div class="score-val">${sparse}</div>
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('resultBlock').classList.add('show');
+  document.getElementById('resultBlock').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ─── Architecture steps ─── */
+const STEPS = [
+  {
+    title: 'Query Embedding with BGE',
+    body: `The incoming claim is embedded using <strong>BAAI/bge-large-en-v1.5</strong>, an encoder-only transformer trained with contrastive learning for retrieval. It maps semantically similar claims to nearby points in a 1024-dimensional vector space.<br><br>BGE uses an <strong>asymmetric strategy</strong>: documents are indexed as plain text, but queries get a prefix - <em>"Represent this sentence for searching relevant passages:"</em>. This signals the model we're searching rather than indexing. Retrieval quality drops measurably without it.<br><br>Embeddings are L2-normalized so cosine similarity equals dot product, keeping scores consistent.`,
+    code: `<span class="cm"># Asymmetric embedding - core BGE insight</span><br><br><span class="kw">def</span> embed_document(text):<br>    <span class="cm"># No prefix for documents</span><br>    <span class="kw">return</span> model.encode(text, normalize=<span class="kw">True</span>)<br><br><span class="kw">def</span> embed_query(query):<br>    prefix = (<span class="str">"Represent this sentence for "</span><br>              <span class="str">"searching relevant passages: "</span>)<br>    <span class="kw">return</span> model.encode(prefix + query, normalize=<span class="kw">True</span>)`
+  },
+  {
+    title: 'Dense Retrieval via pgvector',
+    body: `The query embedding is compared against all stored document vectors using <strong>cosine similarity</strong> via pgvector's HNSW index.<br><br><strong>HNSW (Hierarchical Navigable Small World)</strong> is an approximate nearest-neighbor algorithm. Without it, every search is a full table scan - O(n). HNSW makes search logarithmic, enabling fast retrieval even at scale.<br><br>Dense retrieval excels at <strong>semantic similarity</strong> - "reduces cardiac events" and "lowers heart attack risk" will score high together even though they share no words. This is what BM25 can't do.`,
+    code: `<span class="cm">-- pgvector cosine similarity search</span><br><span class="kw">SELECT</span> d.text, d.label,<br>    <span class="num">1</span> - (e.embedding <=> (:q)::vector)<br>    <span class="kw">AS</span> dense_score<br><span class="kw">FROM</span> embeddings e<br><span class="kw">JOIN</span> documents d <span class="kw">ON</span> d.id = e.doc_id<br><span class="kw">ORDER BY</span> e.embedding <=> (:q)::vector<br><span class="kw">LIMIT</span> <span class="num">10</span>;`
+  },
+  {
+    title: 'Sparse Retrieval with BM25',
+    body: `In parallel, a BM25 index searches for <strong>exact keyword matches</strong>. BM25 scores each document by term frequency (how often query terms appear) and inverse document frequency (how rare those terms are globally).<br><br>BM25 catches what dense retrieval misses: a specific drug name like <strong>KISQALI</strong>, a trial identifier like <strong>MONALEESA-7</strong>, or regulatory language like <em>"adequate and well-controlled studies."</em><br><br>The BM25 index is built in-memory at startup from all documents in the database, and refreshed on every ingest.`,
+    code: `<span class="cm"># BM25 keyword retrieval</span><br><span class="kw">def</span> search(query, top_k=<span class="num">10</span>):<br>    tokens = tokenize(query.lower())<br>    scores = self._index.get_scores(tokens)<br><br>    ranked = sorted(<br>        zip(self._docs, scores),<br>        key=<span class="kw">lambda</span> x: x[<span class="num">1</span>], reverse=<span class="kw">True</span><br>    )<br>    <span class="kw">return</span> ranked[:top_k]`
+  },
+  {
+    title: 'Reciprocal Rank Fusion',
+    body: `Dense and sparse results are merged using <strong>RRF (Cormack et al., 2009)</strong>:<br><br><code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-family:JetBrains Mono,monospace;font-size:11px">RRF(d) = Σ 1 / (k + rank(d))</code><br><br>For each document, sum <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px">1/(60 + rank)</code> across both retrieval lists. A document ranked #1 by both retrievers scores highest.<br><br>Why RRF and not weighted averaging? Dense (cosine, 0–1) and sparse (BM25, unbounded) scores are on different scales - averaging them directly is meaningless. RRF uses only <strong>rank positions</strong>, making fusion robust regardless of score distribution. This consistently outperforms score-based fusion on BEIR benchmarks.`,
+    code: `<span class="cm"># RRF formula - rank-based fusion</span><br><span class="kw">for</span> rank, doc <span class="kw">in</span> enumerate(dense, start=<span class="num">1</span>):<br>    rrf[doc.id] += <span class="num">1.0</span> / (<span class="num">60</span> + rank)<br><br><span class="kw">for</span> rank, doc <span class="kw">in</span> enumerate(sparse, start=<span class="num">1</span>):<br>    rrf[doc.id] += <span class="num">1.0</span> / (<span class="num">60</span> + rank)<br><br><span class="cm"># Sort by fused score, return top-5</span><br>fused = sorted(rrf.items(),<br>               key=<span class="kw">lambda</span> x: x[<span class="num">1</span>],<br>               reverse=<span class="kw">True</span>)[:top_k]`
+  },
+  {
+    title: 'Few-shot LLM Classification',
+    body: `The top-5 fused results become <strong>few-shot examples</strong> in a structured prompt sent to <strong>Llama 3.3 70B via Groq</strong>. The LLM sees labeled FDA enforcement precedents alongside the new claim and reasons about compliance under FDA promotional guidelines (21 CFR Part 202).<br><br>This is the core RAG insight: the LLM doesn't need to memorize regulatory knowledge - it reasons over retrieved evidence <em>at inference time</em>. Better retrieval directly means better classification.<br><br>The response is constrained to a JSON object with <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px">label</code>, <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px">confidence</code>, and <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px">rationale</code>. Predictions below 70% confidence are automatically flagged for human MLR review.`,
+    code: `<span class="cm"># Groq API - OpenAI-compatible client, Llama 3.3 70B</span><br>response = client.chat.completions.create(<br>    model=<span class="str">"llama-3.3-70b-versatile"</span>,<br>    response_format={<span class="str">"type"</span>: <span class="str">"json_object"</span>},<br>    messages=[{<span class="str">"role"</span>: <span class="str">"user"</span>,<br>               <span class="str">"content"</span>: build_prompt(claim, examples)}]<br>)<br><br><span class="cm"># Flag low-confidence for review</span><br>needs_review = result.confidence < <span class="num">0.70</span>`
+  }
+];
+
+function showStep(idx, el) {
+  document.querySelectorAll('.step-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const s = STEPS[idx];
+  const detail = document.getElementById('stepDetail');
+  detail.innerHTML = `
+    <div>
+      <div class="d-title">${s.title}</div>
+      <div class="d-body">${s.body}</div>
+    </div>
+    <div>
+      <div class="code">${s.code}</div>
+    </div>`;
+  detail.classList.add('show');
+}
+
+/* ─── Toast ─── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 5000);
+}
+
+/* ─── API health ─── */
+async function checkApi() {
+  try {
+    const r = await fetch(API + '/health', { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    const ok = d.database;
+    const dot = document.getElementById('apiDot');
+    dot.className = 'api-dot' + (ok ? ' live' : '');
+    document.getElementById('apiText').textContent = ok ? 'api live' : 'db unreachable';
+  } catch {
+    document.getElementById('apiDot').className = 'api-dot';
+    document.getElementById('apiText').textContent = 'api offline';
+  }
+}
+checkApi();
+setInterval(checkApi, 15000);
+</script>
+
+<!-- ═══════════════════ AI DISCLAIMER ═══════════════════ -->
+<style>
+/* ── Disclaimer popup (bottom-center, shows every page load) ── */
+.disclaimer-popup {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  width: calc(100% - 48px);
+  max-width: 560px;
+  animation: slideUpPop 0.35s cubic-bezier(0.2,0.8,0.3,1);
+}
+.disclaimer-popup.hidden { display: none; }
+@keyframes slideUpPop {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.disclaimer-card {
+  background: #081426;
+  border: 1px solid #1e3a5f;
+  border-radius: 16px;
+  width: 100%;
+  padding: 28px 32px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(79,142,247,0.1);
+}
+.disclaimer-card .dc-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: rgba(245,166,35,0.12);
+  border: 1px solid rgba(245,166,35,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 20px;
+}
+.disclaimer-card h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px; font-weight: 700;
+  color: #ddeaff; margin-bottom: 12px;
+}
+.disclaimer-card p {
+  font-size: 13px; line-height: 1.65;
+  color: #6b90c0; margin-bottom: 10px;
+}
+.disclaimer-card p strong { color: #adc8f0; }
+.disclaimer-card .dc-bullets {
+  background: rgba(245,166,35,0.05);
+  border: 1px solid rgba(245,166,35,0.15);
+  border-radius: 8px; padding: 10px 14px;
+  margin: 12px 0;
+}
+.disclaimer-card .dc-bullets li {
+  font-size: 12px; color: #6b90c0;
+  list-style: none; padding: 2px 0;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.disclaimer-card .dc-bullets li::before {
+  content: '→'; color: #f5a623; flex-shrink: 0; margin-top: 1px;
+}
+.dc-actions {
+  display: flex; gap: 10px; margin-top: 18px;
+}
+.dc-btn-primary {
+  flex: 1; padding: 10px 16px;
+  background: #4f8ef7; color: white;
+  border: none; border-radius: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+.dc-btn-primary:hover { background: #3a7de8; }
+
+/* ── Footer banner ── */
+.disclaimer-footer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 8000;
+  background: rgba(8,20,38,0.96);
+  border-top: 1px solid rgba(245,166,35,0.2);
+  backdrop-filter: blur(12px);
+  padding: 10px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  transition: transform 0.3s ease;
+}
+.disclaimer-footer.hidden { transform: translateY(100%); }
+.df-left {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1; min-width: 0;
+}
+.df-badge {
+  flex-shrink: 0;
+  background: rgba(245,166,35,0.12);
+  border: 1px solid rgba(245,166,35,0.3);
+  border-radius: 5px; padding: 3px 8px;
+  font-size: 11px; font-weight: 700;
+  color: #f5a623; letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.df-text {
+  font-size: 12px; color: #4a6a90; line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.df-text a {
+  color: #4f8ef7; text-decoration: none;
+}
+.df-text a:hover { text-decoration: underline; }
+.df-close {
+  flex-shrink: 0;
+  background: none; border: none; color: #2e4a6e;
+  cursor: pointer; font-size: 16px; padding: 4px 8px;
+  transition: color 0.2s;
+}
+.df-close:hover { color: #6b90c0; }
+
+/* Push page content above footer / popup */
+body.has-footer { padding-bottom: 46px; }
+body.has-popup  { padding-bottom: 220px; }
+</style>
+
+<!-- Disclaimer popup: bottom-center, shows on every page load -->
+<div class="disclaimer-popup" id="disclaimerPopup">
+  <div class="disclaimer-card">
+    <div class="dc-icon">&#9888;</div>
+    <h2>AI-Assisted Classification - Research Prototype</h2>
+    <p>
+      HybridRAG uses an LLM with hybrid retrieval to classify pharma promotional claims for MLR compliance.
+      <strong>This is a research prototype and is not a substitute for qualified Medical-Legal-Regulatory review.</strong>
+    </p>
+    <div class="dc-bullets">
+      <ul>
+        <li>AI verdicts may be incorrect, incomplete, or contextually inappropriate.</li>
+        <li>All outputs should be reviewed by a qualified MLR professional before action.</li>
+        <li>Knowledge base is limited to ingested FDA OPDP data; may not reflect current guidance.</li>
+        <li>Confidence scores are model estimates, not guarantees of accuracy.</li>
+      </ul>
+    </div>
+    <div class="dc-actions">
+      <button class="dc-btn-primary" onclick="acceptDisclaimer()">I understand - continue to demo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer banner -->
+<div class="disclaimer-footer" id="disclaimerFooter">
+  <div class="df-left">
+    <span class="df-badge">AI DISCLAIMER</span>
+    <span class="df-text">
+      Research prototype - not for regulatory use. All verdicts require human MLR review.
+      Low-confidence outputs are automatically flagged for expert review.
+    </span>
+  </div>
+  <button class="df-close" onclick="dismissFooter()" title="Dismiss">✕</button>
+</div>
+
+<script>
+(function () {
+  // Popup shows on every page load - no sessionStorage
+  const popup  = document.getElementById('disclaimerPopup');
+  const footer = document.getElementById('disclaimerFooter');
+
+  // Footer stays hidden until popup is dismissed
+  footer.classList.add('hidden');
+  document.body.classList.add('has-popup');
+
+  window.acceptDisclaimer = function () {
+    popup.classList.add('hidden');
+    document.body.classList.remove('has-popup');
+    footer.classList.remove('hidden');
+    document.body.classList.add('has-footer');
+  };
+
+  window.dismissFooter = function () {
+    footer.classList.add('hidden');
+    document.body.classList.remove('has-footer');
+  };
+})();
+</script>
+</body>
+</html>

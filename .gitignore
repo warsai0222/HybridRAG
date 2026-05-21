@@ -1,0 +1,27 @@
+# Secrets — never commit these
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Models (large HuggingFace downloads)
+models/
+*.bin
+*.safetensors
+
+# FDA scraped data — large, reproducible via make scrape-fda
+data/fda_opdp_raw.jsonl
+data/fda_opdp_skipped.jsonl
+data/pdf_cache/
+pdf_cache/
+
+# Eval reports (generated artifacts)
+data/eval/reports/
+data/eval/synthetic_examples.jsonl
+
+# OS
+.DS_Store

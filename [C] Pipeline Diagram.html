@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HybridRAG - Pipeline Diagram</title>
+<style>
+  body { background: #040d1f; margin: 0; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; font-family: ui-monospace, 'JetBrains Mono', monospace; }
+  svg { max-width: 900px; width: 100%; }
+  .notes { max-width: 900px; width: 100%; margin-top: 40px; color: #6b90c0; }
+  .notes h2 { color: #4f8ef7; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; margin: 28px 0 12px; border-bottom: 1px solid #132340; padding-bottom: 8px; }
+  .notes h3 { color: #ddeaff; font-size: 12px; margin: 16px 0 6px; }
+  .notes p { font-size: 12px; line-height: 1.75; margin: 0 0 10px; color: #6b90c0; }
+  .notes strong { color: #adc8f0; }
+  .q { background: #081426; border: 1px solid #132340; border-left: 3px solid #4f8ef7; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-bottom: 12px; }
+  .q .question { color: #f5a623; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+  .q .answer { color: #6b90c0; font-size: 11.5px; line-height: 1.75; }
+  .q .answer strong { color: #adc8f0; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-right: 6px; }
+  .tag.amber { background: rgba(245,166,35,0.12); color: #f5a623; border: 1px solid rgba(245,166,35,0.3); }
+  .tag.blue  { background: rgba(79,142,247,0.12);  color: #4f8ef7;  border: 1px solid rgba(79,142,247,0.3); }
+  .tag.green { background: rgba(0,212,154,0.10);   color: #00d49a;  border: 1px solid rgba(0,212,154,0.25); }
+  .tag.violet{ background: rgba(177,151,252,0.10); color: #b197fc;  border: 1px solid rgba(177,151,252,0.25); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<svg viewBox="0 0 900 940" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,'JetBrains Mono','Courier New',monospace">
+<defs>
+  <marker id="a0" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6Z" fill="#4a6a90"/></marker>
+  <marker id="aa" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6Z" fill="#f5a623"/></marker>
+  <marker id="ab" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6Z" fill="#4f8ef7"/></marker>
+  <marker id="ag" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6Z" fill="#00d49a"/></marker>
+</defs>
+<rect width="900" height="940" fill="#040d1f"/>
+<text x="450" y="34" text-anchor="middle" fill="#ddeaff" font-size="16" font-weight="700" letter-spacing="-0.02em" font-family="ui-sans-serif,system-ui,sans-serif">HybridRAG - Complete Pipeline</text>
+<text x="450" y="52" text-anchor="middle" fill="#2e4a6e" font-size="9.5" letter-spacing="0.14em">FDA OPDP DATA  ·  HYBRID RETRIEVAL  ·  RAG CLASSIFICATION</text>
+<rect x="16" y="62" width="868" height="27" rx="5" fill="#0d1b33"/>
+<rect x="16" y="62" width="3" height="27" rx="1" fill="#f5a623"/>
+<text x="27" y="80" fill="#f5a623" font-size="9" letter-spacing="0.16em" font-weight="700">01 / DATA COLLECTION</text>
+<text x="172" y="80" fill="#354f70" font-size="9" letter-spacing="0.06em">make scrape-fda  ->  fda.gov/opdp  ->  parse  ->  label  ->  fda_opdp_raw.jsonl</text>
+<rect x="16" y="97" width="200" height="82" rx="8" fill="#081426" stroke="#f5a62338" stroke-width="1.5"/>
+<text x="116" y="123" text-anchor="middle" font-size="22">&#127963;</text>
+<text x="116" y="143" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">FDA OPDP</text>
+<text x="116" y="158" text-anchor="middle" fill="#6b90c0" font-size="8.5">fda.gov · HTML table</text>
+<text x="116" y="170" text-anchor="middle" fill="#2e4a6e" font-size="8">70+ untitled letters · PDF URLs</text>
+<line x1="216" y1="138" x2="232" y2="138" stroke="#f5a623" stroke-width="1.5" marker-end="url(#aa)"/>
+<rect x="234" y="97" width="200" height="82" rx="8" fill="#081426" stroke="#4f8ef730" stroke-width="1"/>
+<text x="334" y="123" text-anchor="middle" font-size="22">&#8681;</text>
+<text x="334" y="143" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Download PDF</text>
+<text x="334" y="158" text-anchor="middle" fill="#6b90c0" font-size="8.5">requests · retry · stream</text>
+<text x="334" y="170" text-anchor="middle" fill="#2e4a6e" font-size="8">cached to data/pdf_cache/</text>
+<line x1="434" y1="138" x2="450" y2="138" stroke="#4a6a90" stroke-width="1.5" marker-end="url(#a0)"/>
+<rect x="452" y="97" width="200" height="82" rx="8" fill="#081426" stroke="#00d49a28" stroke-width="1"/>
+<text x="552" y="123" text-anchor="middle" font-size="22">&#128196;</text>
+<text x="552" y="143" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Extract Text</text>
+<text x="552" y="158" text-anchor="middle" fill="#6b90c0" font-size="8.5">pdfplumber · all pages</text>
+<text x="552" y="170" text-anchor="middle" fill="#2e4a6e" font-size="8">normalize quotes · ligatures</text>
+<line x1="652" y1="138" x2="668" y2="138" stroke="#4a6a90" stroke-width="1.5" marker-end="url(#a0)"/>
+<rect x="670" y="97" width="214" height="82" rx="8" fill="#081426" stroke="#f5a62328" stroke-width="1"/>
+<text x="777" y="123" text-anchor="middle" font-size="22">&#127991;</text>
+<text x="777" y="143" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Parse + Label</text>
+<text x="777" y="158" text-anchor="middle" fill="#6b90c0" font-size="8.5">section split · claim extract</text>
+<text x="777" y="170" text-anchor="middle" fill="#2e4a6e" font-size="8">keyword rules -> 5 labels</text>
+<rect x="16" y="189" width="868" height="22" rx="4" fill="#0a1628" stroke="#132340" stroke-width="1"/>
+<text x="30" y="204" fill="#4a6a90" font-size="8" letter-spacing="0.08em">LABELS:</text>
+<text x="82" y="204" fill="#ff5470" font-size="8.5" font-weight="600">false_balance</text>
+<text x="162" y="204" fill="#4a6a90" font-size="8">omission/risk</text>
+<text x="222" y="204" fill="#4a6a90" font-size="8">·</text>
+<text x="232" y="204" fill="#4f8ef7" font-size="8.5" font-weight="600">needs_legal_review</text>
+<text x="348" y="204" fill="#4a6a90" font-size="8">off-label/superiority</text>
+<text x="430" y="204" fill="#4a6a90" font-size="8">·</text>
+<text x="440" y="204" fill="#f5a623" font-size="8.5" font-weight="600">unsupported</text>
+<text x="514" y="204" fill="#4a6a90" font-size="8">no evidence</text>
+<text x="570" y="204" fill="#4a6a90" font-size="8">·</text>
+<text x="580" y="204" fill="#b197fc" font-size="8.5" font-weight="600">partially_supported</text>
+<text x="688" y="204" fill="#4a6a90" font-size="8">overstated</text>
+<text x="740" y="204" fill="#4a6a90" font-size="8">·</text>
+<text x="750" y="204" fill="#6b90c0" font-size="8.5" font-weight="600">insufficient_data</text>
+<rect x="16" y="219" width="868" height="32" rx="5" fill="#110e00" stroke="#f5a62325" stroke-width="1"/>
+<text x="26" y="239" fill="#f5a623" font-size="9.5" font-weight="700">&#9888;  REVIEW</text>
+<text x="100" y="239" fill="#5a7a50" font-size="9">  Open fda_opdp_raw.jsonl · remove boilerplate rows · fix mislabeled claims · then:</text>
+<text x="634" y="239" fill="#00d49a" font-size="9" font-weight="600">make ingest-fda</text>
+<rect x="16" y="259" width="868" height="27" rx="5" fill="#0d1b33"/>
+<rect x="16" y="259" width="3" height="27" rx="1" fill="#00d49a"/>
+<text x="27" y="277" fill="#00d49a" font-size="9" letter-spacing="0.16em" font-weight="700">02 / INGEST</text>
+<text x="103" y="277" fill="#354f70" font-size="9" letter-spacing="0.06em">make ingest-fda  ->  PostgreSQL documents  +  pgvector HNSW  +  BM25 in-memory</text>
+<rect x="16" y="294" width="278" height="76" rx="8" fill="#081426" stroke="#4f8ef730" stroke-width="1"/>
+<text x="155" y="318" text-anchor="middle" font-size="20">&#128024;</text>
+<text x="155" y="337" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">PostgreSQL</text>
+<text x="155" y="352" text-anchor="middle" fill="#6b90c0" font-size="8.5">documents table</text>
+<text x="155" y="364" text-anchor="middle" fill="#2e4a6e" font-size="8">text · label · drug · metadata</text>
+<rect x="310" y="294" width="278" height="76" rx="8" fill="#081426" stroke="#4f8ef748" stroke-width="1.5"/>
+<text x="449" y="318" text-anchor="middle" font-size="20">&#9889;</text>
+<text x="449" y="337" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">pgvector HNSW</text>
+<text x="449" y="352" text-anchor="middle" fill="#6b90c0" font-size="8.5">BGE-large-en-v1.5 · 1024-dim · L2</text>
+<text x="449" y="364" text-anchor="middle" fill="#2e4a6e" font-size="8">approximate nearest-neighbor index</text>
+<rect x="604" y="294" width="278" height="76" rx="8" fill="#081426" stroke="#00d49a28" stroke-width="1"/>
+<text x="743" y="318" text-anchor="middle" font-size="20">&#128221;</text>
+<text x="743" y="337" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">BM25 Index</text>
+<text x="743" y="352" text-anchor="middle" fill="#6b90c0" font-size="8.5">Okapi · in-memory · Rank-BM25</text>
+<text x="743" y="364" text-anchor="middle" fill="#2e4a6e" font-size="8">rebuilt on every API startup</text>
+<rect x="16" y="378" width="868" height="27" rx="5" fill="#0d1b33"/>
+<rect x="16" y="378" width="3" height="27" rx="1" fill="#4f8ef7"/>
+<text x="27" y="396" fill="#4f8ef7" font-size="9" letter-spacing="0.16em" font-weight="700">03 / CLASSIFY AT QUERY TIME</text>
+<text x="230" y="396" fill="#354f70" font-size="9" letter-spacing="0.06em">POST /classify  ->  src/classifier/classify.py  ->  returns JSON verdict</text>
+<rect x="310" y="413" width="280" height="62" rx="8" fill="#081426" stroke="#b197fc40" stroke-width="1.5"/>
+<text x="450" y="436" text-anchor="middle" font-size="18">&#128172;</text>
+<text x="450" y="455" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Incoming Claim</text>
+<text x="450" y="468" text-anchor="middle" fill="#6b90c0" font-size="8.5">pharma promotional text · any length</text>
+<line x1="450" y1="475" x2="450" y2="490" stroke="#4a6a90" stroke-width="1.5" marker-end="url(#a0)"/>
+<rect x="310" y="491" width="280" height="62" rx="8" fill="#081426" stroke="#f5a62335" stroke-width="1"/>
+<text x="450" y="514" text-anchor="middle" font-size="18">&#128290;</text>
+<text x="450" y="533" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">BGE Query Embed</text>
+<text x="450" y="546" text-anchor="middle" fill="#6b90c0" font-size="8.5">prefix: "Represent this sentence for searching..."</text>
+<line x1="450" y1="553" x2="450" y2="563" stroke="#4a6a90" stroke-width="1.5"/>
+<line x1="270" y1="563" x2="632" y2="563" stroke="#4a6a90" stroke-width="1.5"/>
+<line x1="270" y1="563" x2="270" y2="578" stroke="#4f8ef7" stroke-width="1.5" marker-end="url(#ab)"/>
+<line x1="630" y1="563" x2="630" y2="578" stroke="#00d49a" stroke-width="1.5" marker-end="url(#ag)"/>
+<rect x="170" y="579" width="200" height="62" rx="8" fill="#081426" stroke="#4f8ef748" stroke-width="1.5"/>
+<text x="270" y="602" text-anchor="middle" font-size="16">&#128269;</text>
+<text x="270" y="621" text-anchor="middle" fill="#ddeaff" font-size="11.5" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Dense Retrieval</text>
+<text x="270" y="634" text-anchor="middle" fill="#6b90c0" font-size="8">pgvector · cosine · top-10</text>
+<rect x="530" y="579" width="200" height="62" rx="8" fill="#081426" stroke="#00d49a40" stroke-width="1.5"/>
+<text x="630" y="602" text-anchor="middle" font-size="16">&#128221;</text>
+<text x="630" y="621" text-anchor="middle" fill="#ddeaff" font-size="11.5" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">BM25 Retrieval</text>
+<text x="630" y="634" text-anchor="middle" fill="#6b90c0" font-size="8">keyword · Okapi · top-10</text>
+<text x="450" y="603" text-anchor="middle" fill="#1e3a58" font-size="8.5">runs in</text>
+<text x="450" y="616" text-anchor="middle" fill="#1e3a58" font-size="8.5">parallel</text>
+<line x1="270" y1="641" x2="270" y2="651" stroke="#4f8ef780" stroke-width="1.5"/>
+<line x1="270" y1="651" x2="449" y2="651" stroke="#4a6a90" stroke-width="1.5"/>
+<line x1="630" y1="641" x2="630" y2="651" stroke="#00d49a80" stroke-width="1.5"/>
+<line x1="630" y1="651" x2="451" y2="651" stroke="#4a6a90" stroke-width="1.5"/>
+<line x1="450" y1="651" x2="450" y2="664" stroke="#4a6a90" stroke-width="1.5" marker-end="url(#a0)"/>
+<rect x="310" y="665" width="280" height="62" rx="8" fill="#081426" stroke="#f5a62348" stroke-width="1.5"/>
+<text x="450" y="689" text-anchor="middle" font-size="18">&#9878;</text>
+<text x="450" y="708" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">RRF Fusion   k=60</text>
+<text x="450" y="720" text-anchor="middle" fill="#6b90c0" font-size="8.5">1/(60+rank) per list · sum both · top-5</text>
+<line x1="450" y1="727" x2="450" y2="742" stroke="#4a6a90" stroke-width="1.5" marker-end="url(#a0)"/>
+<rect x="310" y="743" width="280" height="62" rx="8" fill="#081426" stroke="#b197fc48" stroke-width="1.5"/>
+<text x="450" y="767" text-anchor="middle" font-size="18">&#129504;</text>
+<text x="450" y="786" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Llama 3.3 70B</text>
+<text x="450" y="799" text-anchor="middle" fill="#6b90c0" font-size="8.5">Groq API · few-shot prompt · JSON output</text>
+<line x1="450" y1="805" x2="450" y2="820" stroke="#4a6a90" stroke-width="1.5" marker-end="url(#a0)"/>
+<rect x="190" y="821" width="520" height="62" rx="8" fill="#091c36" stroke="#4f8ef738" stroke-width="1.5"/>
+<text x="450" y="845" text-anchor="middle" font-size="18">&#9989;</text>
+<text x="450" y="864" text-anchor="middle" fill="#ddeaff" font-size="12" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">Verdict: label · confidence · rationale</text>
+<text x="450" y="876" text-anchor="middle" fill="#6b90c0" font-size="8.5">conf &lt; 0.70 -> needs_human_review: true   ·   max RRF &lt; 0.015 -> insufficient_data</text>
+<rect x="16" y="893" width="868" height="38" rx="5" fill="#07101f" stroke="#0e1e35" stroke-width="1"/>
+<text x="26" y="906" fill="#2e4a6e" font-size="7.5" letter-spacing="0.1em">INTERVIEW TALKING POINTS</text>
+<text x="26" y="921" fill="#4a6a90" font-size="8.5" font-weight="600">BGE:</text>
+<text x="56" y="921" fill="#354f70" font-size="8.5">MTEB leader, semantic paraphrases    </text>
+<text x="237" y="921" fill="#4a6a90" font-size="8.5" font-weight="600">BM25:</text>
+<text x="272" y="921" fill="#354f70" font-size="8.5">exact drug names, trial IDs    </text>
+<text x="427" y="921" fill="#4a6a90" font-size="8.5" font-weight="600">RRF:</text>
+<text x="455" y="921" fill="#354f70" font-size="8.5">rank-based, scale-invariant (dense+sparse)    </text>
+<text x="660" y="921" fill="#4a6a90" font-size="8.5" font-weight="600">Groq:</text>
+<text x="693" y="921" fill="#354f70" font-size="8.5">400+ tok/s, few-shot</text>
+</svg>
+
+<div class="notes">
+
+  <h2>Interview Q&amp;A - HybridRAG</h2>
+
+  <div class="q">
+    <div class="question">Q: Walk me through the project at a high level.</div>
+    <div class="answer">HybridRAG is a <strong>pharma MLR compliance classifier</strong> that takes a pharmaceutical promotional claim and classifies it into one of 6 categories - supported, unsupported, partially supported, false balance, needs legal review, or insufficient data. It works by retrieving the most relevant real FDA enforcement actions (OPDP untitled letters) using a hybrid of dense semantic search and sparse BM25 keyword search, fuses the results with Reciprocal Rank Fusion, then feeds the top-5 as few-shot examples to Llama 3.3 70B to reason about compliance. The key insight is that the LLM doesn't need to memorize FDA regulations - it reasons over retrieved evidence at inference time.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: Why hybrid retrieval? Why not just use dense embeddings?</div>
+    <div class="answer"><strong>Dense retrieval</strong> (BGE + pgvector) catches semantic similarity - "reduces cardiac events" and "lowers heart attack risk" map to nearby points in vector space even though they share zero words. But it misses exact term matches. <strong>BM25</strong> catches what dense misses: a specific drug name like KISQALI, a trial identifier like MONALEESA-7, or regulatory language like "adequate and well-controlled studies." These are critical in pharma where exact terminology matters for legal precedent. The two retrievers are <strong>architecturally complementary</strong> - neither alone is sufficient.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: What is RRF and why use it instead of score averaging?</div>
+    <div class="answer">RRF stands for Reciprocal Rank Fusion (Cormack et al., 2009). The formula is: <strong>RRF(d) = sum of 1/(k + rank(d))</strong> across all retrieval lists, where k=60. The critical insight is that dense scores (cosine similarity, range 0-1) and sparse scores (BM25, unbounded) live on completely different scales - averaging them directly is mathematically meaningless. RRF uses only <strong>rank positions</strong>, making it scale-invariant. A document ranked #1 by both retrievers gets the highest score regardless of what the raw scores were. This consistently outperforms score-based fusion on BEIR benchmarks.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: Why BGE specifically? Why not OpenAI embeddings?</div>
+    <div class="answer">BGE-large-en-v1.5 by BAAI leads the <strong>MTEB English retrieval benchmarks</strong>. It uses an asymmetric strategy: documents are indexed as plain text, but queries get a prefix - "Represent this sentence for searching relevant passages:" - which signals the model it's doing search, not indexing. Retrieval quality measurably drops without this prefix. Embeddings are L2-normalized so cosine similarity equals dot product. Compared to OpenAI embeddings: lower latency (runs locally), no per-call cost at scale, and no data leaving the system - important for pharma regulatory data.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: Where does the training data come from?</div>
+    <div class="answer">Real <strong>FDA OPDP untitled letters</strong> scraped from fda.gov. These are enforcement actions where the FDA cited specific promotional claims as violating 21 CFR Part 202. The labels aren't synthetic - they come from the FDA's own categorization of violations: false or misleading efficacy claims, omission of risk information, off-label promotion, unsubstantiated comparative claims, etc. The scraper downloads each PDF, extracts text with pdfplumber, splits into violation sections by regex, extracts the specific cited claims using 5 strategies (bullets, numbered lists, inline quotes, "statement: X" patterns, prose fallback), and assigns one of 5 compliance labels via keyword-priority rules.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: How does the confidence threshold work?</div>
+    <div class="answer">The LLM returns a confidence score (0.0 to 1.0) alongside the label and rationale. If confidence is below <strong>0.70</strong>, the result sets <strong>needs_human_review: true</strong> - signaling that a qualified MLR professional should review rather than acting on the AI verdict directly. There's also a separate check: if the maximum RRF score across all retrieved documents is below <strong>0.015</strong>, it means no relevant precedent exists in the knowledge base, and the label becomes <strong>insufficient_data</strong> rather than guessing.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: Why Groq / Llama instead of OpenAI?</div>
+    <div class="answer">Groq's LPU inference engine delivers <strong>400+ tokens/second</strong> on Llama 3.3 70B - roughly 10-20x faster than OpenAI API for the same capability tier. The Groq API is <strong>OpenAI-compatible</strong> (same client library, just swap base URL and model name), so there's zero migration cost. For a RAG system where the LLM is the last step in a pipeline, inference latency matters - faster LLM means faster end-to-end classification. Llama 3.3 70B is competitive with GPT-4o on reasoning tasks while being free at the inference layer via Groq's free tier.</div>
+  </div>
+
+  <div class="q">
+    <div class="question">Q: What is RAGAS and how did you use it here?</div>
+    <div class="answer">RAGAS is an LLM-as-judge evaluation framework originally designed for QA systems. I adapted it to a <strong>classifier</strong> by framing each test case as: question = "Classify this pharma claim for MLR compliance: {claim}", answer = "{label}: {rationale}", contexts = retrieved FDA precedents, ground_truth = expert-written verdict. RAGAS measures Faithfulness (is the answer supported by the contexts?), Answer Relevance (does the answer address the question?), Context Precision (are the top-ranked contexts relevant?), Context Recall (are all needed contexts retrieved?), and Answer Similarity (how close is the predicted label to the ground truth?). The eval harness in src/eval/eval_ragas.py also runs standard accuracy, F1, calibration, and latency metrics.</div>
+  </div>
+
+  <div class="notes" style="margin-top:0">
+    <h2>System Specs - Quick Reference</h2>
+    <div class="grid2">
+      <div class="q"><div class="question">Retrieval</div><div class="answer">BGE-large-en-v1.5 (1024-dim) · pgvector HNSW · BM25 Okapi · top-10 each · RRF k=60 · top-5 final</div></div>
+      <div class="q"><div class="question">LLM</div><div class="answer">Llama 3.3 70B via Groq API · OpenAI-compatible client · JSON mode output · ~1.2s latency</div></div>
+      <div class="q"><div class="question">Storage</div><div class="answer">PostgreSQL + pgvector (single DB for structured + vector) · BM25 in-memory (RAM) · PDF cache on disk</div></div>
+      <div class="q"><div class="question">Labels (6)</div><div class="answer">supported · unsupported · partially_supported · false_balance · needs_legal_review · insufficient_data</div></div>
+      <div class="q"><div class="question">API</div><div class="answer">FastAPI · Pydantic · POST /classify · GET /health · auto OpenAPI docs at /docs · CORS-enabled</div></div>
+      <div class="q"><div class="question">Data</div><div class="answer">FDA OPDP untitled letters · real enforcement actions · Pfizer, Novartis, AbbVie, AstraZeneca, Novo Nordisk</div></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

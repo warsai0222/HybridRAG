@@ -1,0 +1,23 @@
+# Secrets — never bake into images
+.env
+.env.*
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Data — large and not needed at build time
+data/
+pdf_cache/
+
+# Dev / OS
+.git/
+.gitignore
+.DS_Store
+*.md
+
+# Tests
+tests/
