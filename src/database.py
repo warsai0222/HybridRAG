@@ -56,17 +56,100 @@ def check_connection() -> bool:
         return False
 
 
-def insert_document(db: Session, content: str, label: str, metadata: dict = None) -> int:
-    """Insert a document and return its new ID."""
+def insert_document(
+    db: Session,
+    content: str,
+    label: str,
+    metadata: dict = None,
+    content_hash: str | None = None,
+) -> int:
+    """
+    Insert a document and return its new ID.
+    content_hash (SHA-256) is stored for deduplication — duplicate hashes
+    are rejected by the UNIQUE constraint before they reach the embeddings table.
+    """
     result = db.execute(
         text("""
-            INSERT INTO documents (text, label, metadata)
-            VALUES (:text, :label, :metadata)
+            INSERT INTO documents (text, label, metadata, content_hash)
+            VALUES (:text, :label, :metadata, :content_hash)
             RETURNING id
         """),
-        {"text": content, "label": label, "metadata": json.dumps(metadata or {})}
+        {
+            "text":         content,
+            "label":        label,
+            "metadata":     json.dumps(metadata or {}),
+            "content_hash": content_hash,
+        }
     )
     return result.scalar_one()
+
+
+def document_exists_by_hash(db: Session, content_hash: str) -> bool:
+    """Return True if a document with this content hash is already in the DB."""
+    result = db.execute(
+        text("SELECT 1 FROM documents WHERE content_hash = :h LIMIT 1"),
+        {"h": content_hash},
+    )
+    return result.fetchone() is not None
+
+
+def url_already_ingested(db: Session, source_url: str) -> bool:
+    """Return True if this source URL was already processed."""
+    result = db.execute(
+        text("SELECT 1 FROM ingested_urls WHERE source_url = :url LIMIT 1"),
+        {"url": source_url},
+    )
+    return result.fetchone() is not None
+
+
+def mark_url_ingested(
+    db: Session,
+    source_url: str,
+    doc_count: int = 0,
+    status: str = "ingested",
+    notes: str | None = None,
+) -> None:
+    """Record a source URL as processed. Uses UPSERT to handle re-runs safely."""
+    db.execute(
+        text("""
+            INSERT INTO ingested_urls (source_url, doc_count, status, notes)
+            VALUES (:url, :doc_count, :status, :notes)
+            ON CONFLICT (source_url) DO UPDATE
+                SET doc_count   = EXCLUDED.doc_count,
+                    status      = EXCLUDED.status,
+                    notes       = EXCLUDED.notes,
+                    ingested_at = NOW()
+        """),
+        {"url": source_url, "doc_count": doc_count, "status": status, "notes": notes},
+    )
+
+
+def insert_review_queue(
+    db: Session,
+    content: str,
+    label: str,
+    metadata: dict,
+    content_hash: str,
+    reason: str,
+) -> None:
+    """
+    Add a document to the human review queue.
+    Uses ON CONFLICT DO NOTHING — re-queueing the same doc is a no-op.
+    """
+    db.execute(
+        text("""
+            INSERT INTO review_queue (text, label, metadata, content_hash, reason)
+            VALUES (:text, :label, :metadata, :content_hash, :reason)
+            ON CONFLICT (content_hash) DO NOTHING
+        """),
+        {
+            "text":         content,
+            "label":        label,
+            "metadata":     json.dumps(metadata),
+            "content_hash": content_hash,
+            "reason":       reason,
+        },
+    )
 
 
 def insert_embedding(db: Session, doc_id: int, embedding: list[float]) -> None:

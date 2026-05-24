@@ -6,7 +6,7 @@ Domain: Pharmaceutical marketing claim compliance (MLR review).
 Pipeline:
   1. Retrieve similar labeled claims via hybrid RAG (BGE dense + BM25 sparse + RRF fusion)
   2. Format retrieved examples as few-shot in-context evidence
-  3. Ask Groq (Llama 3.3 70B) to classify with explicit MLR regulatory reasoning
+  3. Ask Gemini 2.0 Flash to classify with explicit MLR regulatory reasoning
   4. Parse compliance verdict + confidence from structured JSON response
   5. Flag low-confidence predictions for human review
   6. Log every attempt — including failures — to classification_log
@@ -17,7 +17,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 
 from src.config import get_settings
 from src.database import get_db, log_classification
@@ -69,16 +69,52 @@ Your task is to classify a pharmaceutical marketing claim into exactly one of th
   {labels_str}
 
 Verdict definitions:
-  supported           — The claim is directly and fully backed by cited clinical data, prescribing information, or peer-reviewed evidence. No material omissions.
-  unsupported         — The claim has no credible evidence basis, overstates efficacy, misrepresents data, or uses absolute language ("eliminates", "cures", "best") without trial support.
-  partially_supported — The claim is directionally accurate but missing critical hedges (patient population, effect size, statistical significance, confidence intervals, or indication scope).
-  false_balance       — A serious safety risk (black box warning, rare life-threatening adverse event) is presented alongside a minor side effect in a way that obscures severity.
-  needs_legal_review  — The claim raises IP, off-label use, comparative advertising, biosimilarity, interchangeability, or pre-approval promotion concerns requiring legal/regulatory counsel.
-  insufficient_data   — Use ONLY when the reference examples below are from a clearly unrelated drug class, therapeutic area, or regulatory context and cannot meaningfully inform a verdict. Do NOT use this as a fallback for uncertainty — use confidence <0.7 instead.
+  supported           — The claim is directly and fully backed by cited clinical data with ALL of the
+                        following present: trial phase or study type, sample size or patient population,
+                        specific effect size or endpoint result, statistical significance (p-value or CI),
+                        and indication scope. If ANY of these elements is missing, use partially_supported.
+                        Example: "In a Phase III RCT of 3,730 patients, drug X reduced CV death by 26%
+                        vs placebo (HR 0.74; 95% CI 0.65-0.85; p<0.001)." ← supported
 
-Critical instruction: Your verdict must be grounded in the provided reference examples.
-Do NOT classify from general pharmaceutical or FDA knowledge alone. If you cannot
-connect your verdict to at least one of the reference examples, return insufficient_data.
+  partially_supported — The claim is directionally accurate but is MISSING at least one of: sample size,
+                        effect size, p-value or confidence interval, patient population qualifier, or
+                        indication scope. Vague efficacy language ("significantly improves", "reduces risk",
+                        "demonstrated benefit") without accompanying statistics is always partially_supported.
+                        Example: "Drug X significantly reduces cardiovascular risk in diabetic patients."
+                        ← partially_supported (no trial data, no effect size, no p-value cited)
+                        Example: "Drug X is indicated for adults with Type 2 diabetes." ← partially_supported
+                        (approved indication language — directionally correct but no outcome evidence cited)
+
+  unsupported         — The claim has no credible evidence basis, uses absolute language ("eliminates",
+                        "cures", "the best", "guaranteed"), overstates efficacy beyond what trials showed,
+                        or misrepresents data. No directional accuracy — the claim itself is wrong or fabricated.
+
+  false_balance       — Safety information is presented in a way that obscures the true severity of risk.
+                        A serious risk (black box warning, life-threatening adverse event, severe organ
+                        toxicity, or rare but fatal adverse event) is omitted entirely, buried at the end,
+                        minimised with hedging language, or juxtaposed with minor side effects (headache,
+                        nausea) to make it seem equivalent. One-sided benefit claims with no mention of
+                        contraindications or risk information also qualify.
+                        Example: Ad emphasises "well tolerated, with mild side effects like headache"
+                        while omitting a black box warning for hepatotoxicity. ← false_balance
+                        Trigger question: Does the claim omit or downplay a serious known safety risk?
+
+  needs_legal_review  — The claim raises concerns requiring legal or regulatory counsel: off-label use,
+                        unapproved indications, comparative/superiority claims without head-to-head data,
+                        IP or biosimilarity assertions, or pre-approval promotion.
+
+  insufficient_data   — Use ONLY when the reference examples are from a clearly unrelated drug class,
+                        therapeutic area, or regulatory context. Do NOT use as a fallback for uncertainty
+                        — use confidence <0.7 instead and pick the closest label.
+
+CRITICAL decision rule — supported vs partially_supported:
+  Before assigning 'supported', verify the claim explicitly states ALL FIVE:
+    ✓ Trial type or study design (Phase III, RCT, meta-analysis)
+    ✓ Sample size or patient population
+    ✓ Quantified outcome (%, HR, OR, absolute risk reduction)
+    ✓ Statistical significance (p-value AND/OR confidence interval)
+    ✓ Indication scope (which patients, which condition)
+  If even one is absent → partially_supported. This is non-negotiable.
 
 Regulatory context:
   - FDA promotional guidelines: claims must be fair, balanced, and not misleading (21 CFR Part 202).
@@ -86,7 +122,7 @@ Regulatory context:
   - Off-label promotion is prohibited; unapproved indications require legal review.
   - Comparative claims require head-to-head trial data using the same endpoints and patient population.
 
-Reference claims from the compliance library:
+Reference claims from the compliance library (use these to ground your verdict):
 {examples_block}
 
 Claim to evaluate:
@@ -94,31 +130,58 @@ Claim to evaluate:
 
 Respond in this exact JSON format:
 {{
-  "rationale": "<2-3 sentence reviewer-facing explanation. If classifying normally, cite which reference examples informed the verdict. If returning insufficient_data, explain why the reference examples are not relevant to this claim.>",
+  "rationale": "<2-3 sentence reviewer-facing explanation. Cite which reference examples informed your verdict. For supported vs partially_supported, explicitly state which of the 5 required elements are present or absent.>",
   "label": "<one of: {labels_str}>",
-  "confidence": <float 0.0–1.0; use ≥0.85 only when verdict is unambiguous; use <0.7 when claim sits between two verdicts; use 0.0 for insufficient_data>
+  "confidence": <float 0.0–1.0; be conservative — use ≥0.85 only when the verdict is unambiguous AND all evidence clearly points one way; use 0.70-0.84 for clear verdicts with minor uncertainty; use <0.70 when the claim sits between two verdicts or evidence is mixed; use 0.0 for insufficient_data. Overconfidence in MLR review is a compliance risk.>
 }}"""
 
 
-def _call_llm(prompt: str) -> dict:
+def _parse_retry_delay(error: RateLimitError, default: float = 60.0) -> float:
     """
-    Call Groq (Llama 3.3 70B) via the OpenAI-compatible client.
+    Extract the suggested retry delay from a RateLimitError message.
+    Falls back to `default` seconds if no delay is found in the message.
+    """
+    match = re.search(r"retry in\s+([\d.]+)s", str(error), re.IGNORECASE)
+    if match:
+        return float(match.group(1)) + 2.0  # small buffer on top
+    return default
 
-    Groq's API is a drop-in replacement for OpenAI — same Python client,
+
+def _call_llm(prompt: str, max_retries: int = 5) -> dict:
+    """
+    Call the LLM via the OpenAI-compatible client, with automatic retry on rate limits.
+
+    Gemini's API is a drop-in replacement for OpenAI — same Python client,
     same interface, just a different base_url and api_key.
     response_format=json_object guarantees valid JSON output.
+    Free tier: 1,500 req/day, 15 req/min (gemini-2.0-flash).
+
+    On 429 rate limit errors, reads the suggested retry delay from the response
+    and sleeps before retrying — so long-running evals complete unattended.
     """
     client = OpenAI(
-        api_key=settings.groq_api_key,
-        base_url=settings.groq_base_url,
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
     )
 
-    response = client.chat.completions.create(
-        model=settings.groq_model,
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"},
-    )
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=settings.llm_model,
+                max_tokens=512,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+            )
+            break  # success — exit retry loop
+        except RateLimitError as e:
+            if attempt == max_retries:
+                raise
+            delay = _parse_retry_delay(e)
+            logger.warning(
+                f"Rate limit hit (attempt {attempt}/{max_retries}). "
+                f"Sleeping {delay:.1f}s before retry..."
+            )
+            time.sleep(delay)
 
     raw = response.choices[0].message.content.strip()
 
@@ -131,7 +194,7 @@ def _call_llm(prompt: str) -> dict:
 
 def classify(query: str, persist: bool = True) -> ClassificationResult:
     """
-    Classify a pharma marketing claim using hybrid RAG + Groq MLR reasoning.
+    Classify a pharma marketing claim using hybrid RAG + Gemini MLR reasoning.
 
     Args:
       query:   The claim text to evaluate.
@@ -188,7 +251,7 @@ def classify(query: str, persist: bool = True) -> ClassificationResult:
                 needs_human_review=True,
             )
 
-        # Step 3 — Build prompt and call Groq
+        # Step 3 — Build prompt and call Gemini
         prompt = _build_prompt(query, examples, settings.label_list)
         response = _call_llm(prompt)
 

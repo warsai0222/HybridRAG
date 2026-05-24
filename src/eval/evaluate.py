@@ -45,8 +45,13 @@ def run_eval(test_path: str, max_samples: int | None = None) -> dict:
     true_labels, pred_labels, confidences, latencies = [], [], [], []
 
     for i, sample in enumerate(samples):
-        result = classify(sample["text"], persist=False)
-        true_labels.append(sample["label"])
+        # Support both field naming conventions:
+        # Standard ingest format:  {"text": "...", "label": "..."}
+        # Seed eval format:        {"claim": "...", "expected_label": "..."}
+        text       = sample.get("text") or sample.get("claim", "")
+        true_label = sample.get("label") or sample.get("expected_label", "")
+        result = classify(text, persist=False)
+        true_labels.append(true_label)
         pred_labels.append(result.label)
         confidences.append(result.confidence)
         latencies.append(result.latency_ms)

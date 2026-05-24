@@ -1,43 +1,41 @@
 """
-FDA OPDP Enforcement Letter Scraper  (v2 — full PDF parsing)
-=============================================================
-Pulls every Untitled Letter from the FDA OPDP enforcement page, downloads
-each letter as a PDF, extracts the text with pdfplumber, parses out the
-specific marketing claims the FDA cited as violative, maps them to one of
-the 5 HybridRAG compliance labels, and writes a review-ready JSONL file.
+FDA OPDP Enforcement Letter Scraper  (v3 — warning + untitled letters, multi-year)
+====================================================================================
+Pulls enforcement letters from the FDA OPDP page, downloads each as a PDF,
+extracts the specific marketing claims the FDA cited as violative, maps them
+to HybridRAG compliance labels, and writes a review-ready JSONL file.
+
+Supports both letter types:
+  Untitled Letters — less serious violations (omission of risk, misleading claims)
+  Warning Letters  — more serious (off-label promotion, superiority, comparative)
+
+Warning Letters are the primary source of 'needs_legal_review' examples because
+they more frequently cite off-label use, unapproved indications, and superiority
+claims that require legal/regulatory counsel.
 
 Output
 ------
-  data/fda_opdp_raw.jsonl      ← review this before ingesting
-  data/fda_opdp_skipped.jsonl  ← letters we couldn't parse
-  data/pdf_cache/              ← cached PDFs (re-runs skip downloads)
+  data/fda_opdp_raw.jsonl         ← untitled letters output
+  data/fda_warning_raw.jsonl      ← warning letters output
+  data/fda_all_raw.jsonl          ← combined output (--type all)
+  data/fda_opdp_skipped.jsonl     ← letters we couldn't parse
+  data/pdf_cache/                 ← cached PDFs (re-runs skip downloads)
 
 Usage
 -----
-  python scripts/scrape_fda_opdp.py              # all letters
-  python scripts/scrape_fda_opdp.py --limit 20   # first 20 letters
-  python scripts/scrape_fda_opdp.py --year 2023  # one year only
-  python scripts/scrape_fda_opdp.py --no-cache   # re-download everything
-
-FDA letter structure (what we're parsing)
------------------------------------------
-  1. Header  — date, company, address, RE: drug / NDA number
-  2. Intro   — describes the promotional material reviewed
-  3. Background — approved indication
-  4. Issue sections — one per violation type, each titled e.g.:
-       "False or Misleading Efficacy Claims"
-       "Omission of Risk Information"
-       "Misleading Comparative Claims"
-     Under each section the letter either:
-       a) Lists bullet-point claims  (• "claim text")
-       b) Quotes inline claims       ("claim text")
-       c) Describes claims in prose  (no clean quote boundary)
-  5. Conclusion / corrective action request
+  python scripts/scrape_fda_opdp.py                          # untitled, all years
+  python scripts/scrape_fda_opdp.py --type warning           # warning letters only
+  python scripts/scrape_fda_opdp.py --type all               # both letter types
+  python scripts/scrape_fda_opdp.py --years 2020-2024        # specific year range
+  python scripts/scrape_fda_opdp.py --type all --years 2019-2024  # full history
+  python scripts/scrape_fda_opdp.py --limit 20               # first 20 letters
+  python scripts/scrape_fda_opdp.py --no-cache               # re-download everything
 
 Label mapping (section title → label)
 --------------------------------------
   false_balance        ← omission / risk / one-sided / fair balance
-  needs_legal_review   ← off-label / superiority / comparative / unapproved
+  needs_legal_review   ← off-label / superiority / comparative / unapproved /
+                         prior approval / unauthorized indication / broadens label
   unsupported          ← unsubstantiated / no evidence / false / misleading
   partially_supported  ← overstated / cherry-picked / out of context
   supported            ← fallback for compliant language (rarely appears)
@@ -69,11 +67,17 @@ log = logging.getLogger(__name__)
 # ── Constants ──────────────────────────────────────────────────────────────────
 BASE_URL = "https://www.fda.gov"
 
-# Correct listing URL (verified May 2026)
-LISTING_URL = (
-    "https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-"
-    "pharmaceutical-companies/untitled-letters"
-)
+# Both listing URLs share the same table structure (verified May 2026)
+LISTING_URLS = {
+    "untitled": (
+        "https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-"
+        "pharmaceutical-companies/untitled-letters"
+    ),
+    "warning": (
+        "https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-"
+        "pharmaceutical-companies/warning-letters"
+    ),
+}
 
 HEADERS = {
     "User-Agent": (
@@ -89,7 +93,12 @@ REQUEST_DELAY = 2.0   # seconds between requests — be polite to FDA servers
 
 OUTPUT_DIR   = Path("data")
 PDF_CACHE    = OUTPUT_DIR / "pdf_cache"
-RAW_OUTPUT   = OUTPUT_DIR / "fda_opdp_raw.jsonl"
+# Output files per letter type
+RAW_OUTPUTS = {
+    "untitled": OUTPUT_DIR / "fda_opdp_raw.jsonl",
+    "warning":  OUTPUT_DIR / "fda_warning_raw.jsonl",
+    "all":      OUTPUT_DIR / "fda_all_raw.jsonl",
+}
 SKIP_OUTPUT  = OUTPUT_DIR / "fda_opdp_skipped.jsonl"
 
 # ── Label rules ────────────────────────────────────────────────────────────────
@@ -113,14 +122,27 @@ LABEL_RULES: list[tuple[list[str], str]] = [
     ),
     (
         [
+            # Off-label / unapproved indication
             "off-label", "off label", "unapproved use", "unapproved indication",
-            "not approved", "not fda-approved",
+            "not approved", "not fda-approved", "unapproved new drug",
+            "promotes for use", "promoting for use", "promotes the use",
+            "broadens the indication", "broadens the approved",
+            "not included in the approved", "outside the approved indication",
+            "unauthorized indication", "unauthorized use",
+            "prior approval supplement",
+            # Superiority / comparative — require head-to-head trial data
             "superiority", "superior to", "better than",
             "comparative claim", "comparative efficacy",
             "head-to-head", "head to head",
-            "promotes for use", "promoting for use",
+            "more effective than", "greater efficacy than",
+            "outperforms", "preferred over",
+            # Legal / regulatory / IP concerns
             "lacks substantial evidence for",
-            "broadens the indication",
+            "pre-approval", "pre-market", "pre-nda",
+            "investigational", "not yet approved",
+            "interchangeable", "biosimilar" , "interchangeability",
+            "misbranding",                     # 21 USC 352 violation
+            "new drug application" ,           # in context of unapproved promotion
         ],
         "needs_legal_review",
     ),
@@ -131,8 +153,9 @@ LABEL_RULES: list[tuple[list[str], str]] = [
             "not supported by", "no clinical evidence",
             "no evidence", "unsupported claim",
             "false or misleading", "false and misleading",
-            "misleadingly implies", "misbranded",
+            "misleadingly implies",
             "no data", "lacks data",
+            "absolute claim", "eliminates", "cures", "guarantees",
         ],
         "unsupported",
     ),
@@ -188,20 +211,28 @@ def fetch(session: requests.Session, url: str, retries: int = 3,
 
 # ── Listing page ───────────────────────────────────────────────────────────────
 
-def get_letter_index(session: requests.Session,
-                     year_filter: int | None = None) -> list[dict]:
+def get_letter_index(
+    session: requests.Session,
+    listing_url: str,
+    letter_type: str = "untitled_letter",
+    year_filter: int | None = None,
+) -> list[dict]:
     """
-    Scrape the OPDP untitled-letters listing page.
+    Scrape an OPDP listing page (untitled or warning letters).
     Returns list of letter metadata dicts including the PDF download URL.
 
     The listing is a single HTML table with columns:
       Issued Date | Company / Individual | Product / Issue | Response | Close-Out
-    Every untitled letter link is a PDF at https://www.fda.gov/media/<id>/download
+    Every letter link is a PDF at https://www.fda.gov/media/<id>/download
     """
-    log.info(f"Fetching listing page...")
-    resp = fetch(session, LISTING_URL)
+    log.info(f"Fetching listing page: {listing_url}")
+    resp = fetch(session, listing_url)
     if not resp:
-        raise RuntimeError(f"Cannot reach FDA OPDP listing page: {LISTING_URL}")
+        log.error(f"Cannot reach listing page (404 or network error): {listing_url}")
+        log.error("If scraping warning letters, note that FDA OPDP issues very few")
+        log.error("warning letters — most enforcement is via untitled letters.")
+        log.error("Try: python scripts/scrape_fda_opdp.py --type untitled --years 2022-2025")
+        return []
 
     soup = BeautifulSoup(resp.text, "lxml")
     table = soup.find("table")
@@ -280,10 +311,10 @@ def get_letter_index(session: requests.Session,
             "date":        date_text,
             "company":     company,
             "drug":        drug,
-            "letter_type": "untitled_letter",
+            "letter_type": letter_type,
         })
 
-    log.info(f"Found {len(letters)} untitled letters on listing page")
+    log.info(f"Found {len(letters)} {letter_type}(s) on listing page")
     return letters
 
 
@@ -596,44 +627,44 @@ def parse_letter(session: requests.Session, meta: dict,
 
 # ── CLI entry point ────────────────────────────────────────────────────────────
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Scrape FDA OPDP enforcement letters and extract compliance claims"
+def _parse_years(years_str: str) -> list[int]:
+    """Parse '2019-2024' into [2019, 2020, 2021, 2022, 2023, 2024]."""
+    if "-" in years_str:
+        parts = years_str.split("-")
+        start, end = int(parts[0]), int(parts[1])
+        return list(range(start, end + 1))
+    return [int(years_str)]
+
+
+def _scrape_one_source(
+    session: requests.Session,
+    listing_url: str,
+    letter_type: str,
+    year_filter: int | None,
+    limit: int | None,
+    use_cache: bool,
+) -> tuple[list[dict], list[dict], dict]:
+    """Scrape one listing URL (untitled or warning). Returns (records, skipped, label_counts)."""
+    letters = get_letter_index(
+        session,
+        listing_url=listing_url,
+        letter_type=letter_type,
+        year_filter=year_filter,
     )
-    parser.add_argument("--limit",    type=int,  default=None,
-                        help="Max letters to process")
-    parser.add_argument("--year",     type=int,  default=None,
-                        help="Filter to letters from this year (e.g. --year 2023)")
-    parser.add_argument("--output",   type=str,  default=str(RAW_OUTPUT),
-                        help=f"Output JSONL path (default: {RAW_OUTPUT})")
-    parser.add_argument("--no-cache", action="store_true",
-                        help="Re-download PDFs even if cached")
-    args = parser.parse_args()
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    PDF_CACHE.mkdir(parents=True, exist_ok=True)
-    out_path  = Path(args.output)
-    use_cache = not args.no_cache
-
-    session = make_session()
-
-    # ── 1. Get letter index ───────────────────────────────────────────────────
-    letters = get_letter_index(session, year_filter=args.year)
     if not letters:
-        log.error("No letters found. Check listing URL or run with --year to narrow down.")
-        return
+        log.warning(f"No letters found at {listing_url} (year={year_filter})")
+        return [], [], {}
 
-    if args.limit:
-        letters = letters[:args.limit]
-        log.info(f"Limited to first {args.limit} letters")
+    if limit:
+        letters = letters[:limit]
+        log.info(f"Limited to first {limit} letters")
 
-    # ── 2. Process each letter ────────────────────────────────────────────────
     all_records: list[dict] = []
     skipped:     list[dict] = []
     label_counts: dict[str, int] = {}
 
     for i, meta in enumerate(letters, 1):
-        log.info(f"[{i}/{len(letters)}] {meta['drug']:<20} {meta['date']}")
+        log.info(f"[{i}/{len(letters)}] {meta['drug']:<20} {meta['date']}  [{letter_type}]")
         time.sleep(REQUEST_DELAY)
 
         records, err = parse_letter(session, meta, use_cache=use_cache)
@@ -654,26 +685,121 @@ def main() -> None:
             lbl = r["label"]
             label_counts[lbl] = label_counts.get(lbl, 0) + 1
 
-    # ── 3. Write output ───────────────────────────────────────────────────────
+    return all_records, skipped, label_counts
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Scrape FDA OPDP enforcement letters and extract compliance claims"
+    )
+    parser.add_argument(
+        "--type", choices=["untitled", "warning", "all"], default="untitled",
+        help="Letter type to scrape (default: untitled). "
+             "'warning' targets off-label/superiority cases (needs_legal_review). "
+             "'all' scrapes both."
+    )
+    parser.add_argument(
+        "--years", type=str, default=None,
+        help="Year or year range to scrape (e.g. '2023' or '2019-2024'). "
+             "Omit to scrape all available years."
+    )
+    parser.add_argument("--limit",    type=int,  default=None,
+                        help="Max letters per source URL (useful for testing)")
+    parser.add_argument("--output",   type=str,  default=None,
+                        help="Override output JSONL path")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Re-download PDFs even if cached")
+    args = parser.parse_args()
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    PDF_CACHE.mkdir(parents=True, exist_ok=True)
+    use_cache = not args.no_cache
+
+    # Determine which letter types to scrape
+    if args.type == "all":
+        types_to_scrape = ["untitled", "warning"]
+    else:
+        types_to_scrape = [args.type]
+
+    # Determine year(s) to scrape
+    years = _parse_years(args.years) if args.years else [None]
+
+    # Determine output path
+    out_path = Path(args.output) if args.output else RAW_OUTPUTS[args.type]
+
+    session = make_session()
+    all_records:  list[dict]     = []
+    all_skipped:  list[dict]     = []
+    label_counts: dict[str, int] = {}
+
+    for letter_type in types_to_scrape:
+        listing_url = LISTING_URLS[letter_type]
+        for year in years:
+            year_label = str(year) if year else "all years"
+            log.info(f"{'─'*55}")
+            log.info(f"Scraping {letter_type} letters — {year_label}")
+            log.info(f"{'─'*55}")
+
+            records, skipped, counts = _scrape_one_source(
+                session=session,
+                listing_url=listing_url,
+                letter_type=letter_type,
+                year_filter=year,
+                limit=args.limit,
+                use_cache=use_cache,
+            )
+            all_records.extend(records)
+            all_skipped.extend(skipped)
+            for lbl, cnt in counts.items():
+                label_counts[lbl] = label_counts.get(lbl, 0) + cnt
+
+    # ── Write output ──────────────────────────────────────────────────────────
+    # Append to existing file (not overwrite) so multiple runs accumulate data
+    existing: list[dict] = []
+    if out_path.exists():
+        with open(out_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        existing.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+        log.info(f"Appending to existing {out_path} ({len(existing)} existing records)")
+
+    # Deduplicate by URL + claim text before writing
+    seen_keys: set[str] = {
+        f"{r['metadata']['letter_url']}::{r['text']}" for r in existing
+    }
+    new_records = [
+        r for r in all_records
+        if f"{r['metadata']['letter_url']}::{r['text']}" not in seen_keys
+    ]
+    log.info(f"New unique records: {len(new_records)} ({len(all_records) - len(new_records)} duplicates skipped)")
+
     with open(out_path, "w") as f:
-        for record in all_records:
+        for record in existing + new_records:
             f.write(json.dumps(record) + "\n")
 
-    with open(SKIP_OUTPUT, "w") as f:
-        for s in skipped:
+    with open(SKIP_OUTPUT, "a") as f:
+        for s in all_skipped:
             f.write(json.dumps(s) + "\n")
 
-    # ── 4. Summary ────────────────────────────────────────────────────────────
+    # ── Summary ───────────────────────────────────────────────────────────────
+    total_in_file = len(existing) + len(new_records)
     print("\n" + "─" * 60)
     print("  FDA OPDP Scraper — Complete")
     print("─" * 60)
-    print(f"  Letters processed  : {len(letters)}")
-    print(f"  Claims extracted   : {len(all_records)}")
-    print(f"  Letters skipped    : {len(skipped)}")
+    print(f"  Types scraped      : {', '.join(types_to_scrape)}")
+    print(f"  Years scraped      : {args.years or 'all'}")
+    print(f"  New claims found   : {len(new_records)}")
+    print(f"  Duplicates skipped : {len(all_records) - len(new_records)}")
+    print(f"  Letters skipped    : {len(all_skipped)}")
+    print(f"  Total in output    : {total_in_file}")
     print(f"  PDFs cached in     : {PDF_CACHE}/")
     print()
     if label_counts:
-        print("  Label distribution:")
+        print("  New records — label distribution:")
         for label, count in sorted(label_counts.items(), key=lambda x: -x[1]):
             bar = "█" * min(count, 40)
             print(f"    {label:<25} {count:>4}  {bar}")
@@ -681,9 +807,8 @@ def main() -> None:
     print(f"  Output   → {out_path}")
     print(f"  Skipped  → {SKIP_OUTPUT}")
     print()
-    print("  ⚠  REVIEW data/fda_opdp_raw.jsonl before ingesting.")
-    print("  Delete or fix any rows where `text` is boilerplate, not a claim.")
-    print("  Then run:  make db-reset && make ingest-fda")
+    print("  Next: run the ingestion pipeline to validate and load into DB:")
+    print(f"    python scripts/run_ingestion_pipeline.py --input {out_path} --skip-llm")
     print("─" * 60)
 
 

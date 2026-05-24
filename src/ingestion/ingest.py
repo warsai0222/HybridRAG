@@ -68,46 +68,87 @@ def embed_query(query: str) -> list[float]:
     return embedding.tolist()
 
 
-def ingest_documents(documents: list[dict[str, Any]], batch_size: int = 32) -> int:
+def ingest_documents(documents: list[dict[str, Any]], batch_size: int = 32) -> dict:
     """
-    Ingest a list of documents into PostgreSQL.
+    Ingest a list of documents into PostgreSQL with deduplication.
 
     Each document must have:
       - text  (str): the document content (e.g., a pharma marketing claim)
       - label (str): ground-truth compliance verdict
       - metadata (dict, optional): any extra fields (source, reviewer, date, etc.)
 
+    Deduplication:
+      - content_hash (SHA-256) is computed for each doc before insert
+      - Documents already in the DB (same hash) are silently skipped
+      - This makes the function safe to call repeatedly on the same JSONL
+
     Batches texts before embedding — the model processes a batch in parallel,
     which is dramatically faster than encoding one document at a time.
 
-    Returns the number of documents successfully ingested.
+    Returns a dict with ingested / skipped / failed counts.
     """
+    import hashlib, re
+    from src.database import document_exists_by_hash
+
+    def _hash(text: str) -> str:
+        norm = re.sub(r"\s+", " ", text.strip().lower())
+        return hashlib.sha256(norm.encode()).hexdigest()
+
     if not documents:
         logger.warning("ingest_documents called with empty list")
-        return 0
+        return {"ingested": 0, "skipped": 0, "failed": 0}
 
-    ingested = 0
-    for i in range(0, len(documents), batch_size):
-        batch = documents[i : i + batch_size]
-        texts = [doc["text"] for doc in batch]
+    counts = {"ingested": 0, "skipped": 0, "failed": 0}
+
+    # Pre-filter duplicates in a single DB pass before embedding (saves GPU time)
+    to_embed: list[dict] = []
+    hashes:   list[str]  = []
+    with get_db() as db:
+        for doc in documents:
+            h = doc.get("_content_hash") or _hash(doc["text"])
+            if document_exists_by_hash(db, h):
+                counts["skipped"] += 1
+            else:
+                to_embed.append(doc)
+                hashes.append(h)
+
+    if counts["skipped"]:
+        logger.info(f"Dedup: skipped {counts['skipped']} already-ingested documents")
+
+    if not to_embed:
+        logger.info("Nothing new to ingest after dedup check")
+        return counts
+
+    for i in range(0, len(to_embed), batch_size):
+        batch       = to_embed[i : i + batch_size]
+        batch_hash  = hashes[i : i + batch_size]
+        texts       = [doc["text"] for doc in batch]
 
         logger.info(f"Embedding batch {i // batch_size + 1} ({len(texts)} docs)...")
         embeddings = embed(texts)
 
         with get_db() as db:
-            for doc, embedding in zip(batch, embeddings):
-                doc_id = insert_document(
-                    db,
-                    content=doc["text"],
-                    label=doc["label"],
-                    metadata=doc.get("metadata", {}),
-                )
-                insert_embedding(db, doc_id=doc_id, embedding=embedding)
-                ingested += 1
+            for doc, embedding, h in zip(batch, embeddings, batch_hash):
+                try:
+                    doc_id = insert_document(
+                        db,
+                        content=doc["text"],
+                        label=doc["label"],
+                        metadata=doc.get("metadata", {}),
+                        content_hash=h,
+                    )
+                    insert_embedding(db, doc_id=doc_id, embedding=embedding)
+                    counts["ingested"] += 1
+                except Exception as e:
+                    logger.error(f"Failed to insert doc (hash={h[:12]}): {e}")
+                    counts["failed"] += 1
 
-        logger.info(f"Ingested {ingested}/{len(documents)} documents")
+        logger.info(
+            f"Progress: ingested={counts['ingested']}, "
+            f"skipped={counts['skipped']}, failed={counts['failed']}"
+        )
 
-    return ingested
+    return counts
 
 
 def ingest_from_jsonl(path: str) -> int:

@@ -785,9 +785,9 @@ footer {
       <div class="m-hint">Rank-based, scale-invariant</div>
     </div>
     <div class="metric">
-      <div class="m-val amber">5</div>
+      <div class="m-val amber">6</div>
       <div class="m-key">Compliance verdicts</div>
-      <div class="m-hint">Supported → Legal review</div>
+      <div class="m-hint">Supported → Insufficient data</div>
     </div>
     <div class="metric">
       <div class="m-val violet">70%</div>
@@ -1012,7 +1012,13 @@ footer {
       <div class="b-glyph">⚡</div>
       <div class="b-tech">FastAPI + Pydantic</div>
       <div class="b-what">Production-grade API layer</div>
-      <div class="b-why">Type-safe request/response validation, auto-generated OpenAPI docs, async-ready request handling. Pydantic-settings manages config - secrets stay in .env, never in source. CORS-enabled so the portfolio demo works as a local file.</div>
+      <div class="b-why">Type-safe request/response validation, auto-generated OpenAPI docs, async-ready request handling. Pydantic-settings manages config — secrets stay in .env, never in source. Rate-limited via SlowAPI, CORS locked to known origins in production.</div>
+    </div>
+    <div class="b-card emerald">
+      <div class="b-glyph">🛡️</div>
+      <div class="b-tech">Prompt Injection Defense</div>
+      <div class="b-what">API security layer</div>
+      <div class="b-why">14 regex patterns block instruction overrides, jailbreak tokens, and system delimiter injection before input reaches the prompt builder. Control character stripping prevents encoding bypass. Hard 2,000-char input cap stops token stuffing. Belt + suspenders: don't rely solely on LLM resistance.</div>
     </div>
   </div>
 
@@ -1030,8 +1036,8 @@ footer {
   <div class="fda-strip">
     <div class="fda-icon">📋</div>
     <div>
-      <div class="fda-tag">Data Source - FDA OPDP Enforcement Letters</div>
-      <div class="fda-text">The retrieval index is built from real <strong>FDA Office of Prescription Drug Promotion (OPDP) untitled letters</strong> scraped from fda.gov and parsed with pdfplumber. Each claim is labeled by violation type - false balance, unsubstantiated, off-label, comparative - directly from the FDA's own findings. No synthetic data. Source: <a href="https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-pharmaceutical-companies/untitled-letters" target="_blank">fda.gov/opdp</a></div>
+      <div class="fda-tag">Data Source - FDA OPDP Enforcement Letters + PI Documents</div>
+      <div class="fda-text">The retrieval index is built from two real FDA sources: <strong>OPDP untitled letters</strong> scraped from fda.gov (violation labels: false balance, unsupported, off-label) and <strong>FDA-approved prescribing information (PI)</strong> via the FDA Label API (supported/partially_supported labels). No synthetic data. An <strong>agent harness validation pipeline</strong> — rules first, LLM only for borderline cases in batches — gates every document before it enters the knowledge base. Source: <a href="https://www.fda.gov/drugs/warning-letters-and-notice-violation-letters-pharmaceutical-companies/untitled-letters" target="_blank">fda.gov/opdp</a></div>
     </div>
   </div>
 </section>

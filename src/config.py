@@ -14,12 +14,13 @@ class Settings(BaseSettings):
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = "postgresql://hybridrag:hybridrag@localhost:5432/hybridrag"
 
-    # ── Groq (OpenAI-compatible) ──────────────────────────────────────────────
-    # Groq's API is a drop-in replacement for OpenAI — same client, same interface.
-    # Only the base_url and api_key change. The model runs on Groq's hardware for free.
-    groq_api_key: str = ""
-    groq_base_url: str = "https://api.groq.com/openai/v1"
-    groq_model: str = "llama-3.3-70b-versatile"
+    # ── LLM (OpenAI-compatible) ───────────────────────────────────────────────
+    # Google Gemini exposes an OpenAI-compatible endpoint — same Python client,
+    # same interface. Free tier: 1,500 req/day, 1M tokens/min on gemini-2.0-flash.
+    # To switch providers, only these three values need to change in .env.
+    llm_api_key: str = ""
+    llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    llm_model: str = "gemini-2.0-flash"
 
     # ── Embeddings ────────────────────────────────────────────────────────────
     embedding_model: str = "BAAI/bge-large-en-v1.5"

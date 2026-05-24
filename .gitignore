@@ -25,3 +25,7 @@ data/eval/synthetic_examples.jsonl
 
 # OS
 .DS_Store
+.streamlit/
+
+# Claude-generated workspace files (not for public repo)
+"[C]*"
