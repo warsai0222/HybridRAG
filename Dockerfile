@@ -38,8 +38,8 @@ ENV HF_HOME=/app/.cache/huggingface
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-EXPOSE 8000
+EXPOSE 7860
 
 # Uvicorn with 2 workers — enough for a demo/portfolio workload.
 # Increase workers for production.
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "2"]
